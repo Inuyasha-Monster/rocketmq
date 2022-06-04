@@ -190,10 +190,15 @@ public class MQClientAPIImpl {
                            RPCHook rpcHook, final ClientConfig clientConfig) {
         this.clientConfig = clientConfig;
         topAddressing = new TopAddressing(MixAll.getWSAddr(), clientConfig.getUnitName());
+
+        // 通过client配置构建底层 netty client 对象
         this.remotingClient = new NettyRemotingClient(nettyClientConfig, null);
         this.clientRemotingProcessor = clientRemotingProcessor;
 
+        // 注册rpc环绕
         this.remotingClient.registerRPCHook(rpcHook);
+
+        // 以下都是注册功能号以及对应的处理器、线程池（这里使用 NettyRemotingClient 的默认的 publicExecutor）
         this.remotingClient.registerProcessor(RequestCode.CHECK_TRANSACTION_STATE, this.clientRemotingProcessor, null);
 
         this.remotingClient.registerProcessor(RequestCode.NOTIFY_CONSUMER_IDS_CHANGED, this.clientRemotingProcessor, null);

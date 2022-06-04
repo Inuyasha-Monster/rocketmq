@@ -118,10 +118,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
 
     public DefaultMQProducerImpl(final DefaultMQProducer defaultMQProducer, RPCHook rpcHook) {
+        // 保存引用关系
         this.defaultMQProducer = defaultMQProducer;
         this.rpcHook = rpcHook;
 
         this.asyncSenderThreadPoolQueue = new LinkedBlockingQueue<Runnable>(50000);
+        // 构建异步发送消息的线程池
         this.defaultAsyncSenderExecutor = new ThreadPoolExecutor(
             Runtime.getRuntime().availableProcessors(),
             Runtime.getRuntime().availableProcessors(),
@@ -184,12 +186,15 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             case CREATE_JUST:
                 this.serviceState = ServiceState.START_FAILED;
 
+                // 检查生产者组名配置
                 this.checkConfig();
 
+                // 重命名实例名称 {pid}#{纳秒时间戳}
                 if (!this.defaultMQProducer.getProducerGroup().equals(MixAll.CLIENT_INNER_PRODUCER_GROUP)) {
                     this.defaultMQProducer.changeInstanceNameToPID();
                 }
 
+                // 构造 MQClientInstance 实例
                 this.mQClientFactory = MQClientManager.getInstance().getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
 
                 boolean registerOK = mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
@@ -200,14 +205,18 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         null);
                 }
 
+                // 插入测试主题信息
                 this.topicPublishInfoTable.put(this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
                 if (startFactory) {
+                    // 启动 MQClientInstance
                     mQClientFactory.start();
                 }
 
                 log.info("the producer [{}] start OK. sendMessageWithVIPChannel={}", this.defaultMQProducer.getProducerGroup(),
                     this.defaultMQProducer.isSendMessageWithVIPChannel());
+
+                // 设置 producer 服务状态为运行
                 this.serviceState = ServiceState.RUNNING;
                 break;
             case RUNNING:
@@ -221,10 +230,11 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 break;
         }
 
+        // 立即发送心跳给所有的broker列表(疑问：此时broker列表为空)
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
 
+        // 开启请求超时处理服务
         RequestFutureHolder.getInstance().startScheduledTask(this);
-
     }
 
     private void checkConfig() throws MQClientException {
@@ -550,6 +560,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         long beginTimestampFirst = System.currentTimeMillis();
         long beginTimestampPrev = beginTimestampFirst;
         long endTimestamp = beginTimestampFirst;
+        // TODO: 2022/6/4 获取主题的发布信息
         TopicPublishInfo topicPublishInfo = this.tryToFindTopicPublishInfo(msg.getTopic());
         if (topicPublishInfo != null && topicPublishInfo.ok()) {
             boolean callTimeout = false;

@@ -61,6 +61,7 @@ public class ClientRemotingProcessor extends AsyncNettyRequestProcessor implemen
     private final MQClientInstance mqClientFactory;
 
     public ClientRemotingProcessor(final MQClientInstance mqClientFactory) {
+        // 保存 MQClientInstance 引用，方便触发对应方法逻辑或者获取配置
         this.mqClientFactory = mqClientFactory;
     }
 
