@@ -156,6 +156,7 @@ public class MQClientInstance {
 
         // 构建内部发送消息的生产者，用于消费者
         this.defaultMQProducer = new DefaultMQProducer(MixAll.CLIENT_INNER_PRODUCER_GROUP);
+        // 将配置复制到内部的生产者，这样可以公用一个 MQClientInstance 对象
         this.defaultMQProducer.resetClientConfig(clientConfig);
 
         // 消费者统计服务
