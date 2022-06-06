@@ -124,8 +124,9 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     }
 
     @Override
-    public void check(long transactionTimeout, int transactionCheckMax,
-        AbstractTransactionalMessageCheckListener listener) {
+    public void check(long transactionTimeout,
+                      int transactionCheckMax,
+                      AbstractTransactionalMessageCheckListener listener) {
         try {
             String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
             Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
@@ -142,7 +143,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {
                     log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
-                        halfOffset, opOffset);
+                            halfOffset, opOffset);
                     continue;
                 }
 
@@ -151,7 +152,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                 PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
                 if (null == pullResult) {
                     log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
-                        messageQueue, halfOffset, opOffset);
+                            messageQueue, halfOffset, opOffset);
                     continue;
                 }
                 // single thread
@@ -176,11 +177,11 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                             }
                             if (getResult.getPullResult().getPullStatus() == PullStatus.NO_NEW_MSG) {
                                 log.debug("No new msg, the miss offset={} in={}, continue check={}, pull result={}", i,
-                                    messageQueue, getMessageNullCount, getResult.getPullResult());
+                                        messageQueue, getMessageNullCount, getResult.getPullResult());
                                 break;
                             } else {
                                 log.info("Illegal offset, the miss offset={} in={}, continue check={}, pull result={}",
-                                    i, messageQueue, getMessageNullCount, getResult.getPullResult());
+                                        i, messageQueue, getMessageNullCount, getResult.getPullResult());
                                 i = getResult.getPullResult().getNextBeginOffset();
                                 newOffset = i;
                                 continue;
@@ -195,7 +196,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                         }
                         if (msgExt.getStoreTimestamp() >= startTime) {
                             log.debug("Fresh stored. the miss offset={}, check it later, store={}", i,
-                                new Date(msgExt.getStoreTimestamp()));
+                                    new Date(msgExt.getStoreTimestamp()));
                             break;
                         }
 
@@ -214,14 +215,14 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                         } else {
                             if ((0 <= valueOfCurrentMinusBorn) && (valueOfCurrentMinusBorn < checkImmunityTime)) {
                                 log.debug("New arrived, the miss offset={}, check it later checkImmunity={}, born={}", i,
-                                    checkImmunityTime, new Date(msgExt.getBornTimestamp()));
+                                        checkImmunityTime, new Date(msgExt.getBornTimestamp()));
                                 break;
                             }
                         }
                         List<MessageExt> opMsg = pullResult.getMsgFoundList();
                         boolean isNeedCheck = (opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime)
-                            || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
-                            || (valueOfCurrentMinusBorn <= -1);
+                                || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
+                                || (valueOfCurrentMinusBorn <= -1);
 
                         if (isNeedCheck) {
                             if (!putBackHalfMsgQueue(msgExt, i)) {
@@ -231,7 +232,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                         } else {
                             pullResult = fillOpRemoveMap(removeMap, opQueue, pullResult.getNextBeginOffset(), halfOffset, doneOpOffset);
                             log.debug("The miss offset:{} in messageQueue:{} need to get more opMsg, result is:{}", i,
-                                messageQueue, pullResult);
+                                    messageQueue, pullResult);
                             continue;
                         }
                     }
