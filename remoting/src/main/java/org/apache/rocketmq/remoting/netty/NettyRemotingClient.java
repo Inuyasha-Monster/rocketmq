@@ -549,6 +549,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
             throws InterruptedException, RemotingConnectException, RemotingTooMuchRequestException, RemotingTimeoutException,
             RemotingSendRequestException {
         long beginStartTime = System.currentTimeMillis();
+        // 获取或者创建channal
         final Channel channel = this.getAndCreateChannel(addr);
         if (channel != null && channel.isActive()) {
             try {
@@ -557,6 +558,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 if (timeoutMillis < costTime) {
                     throw new RemotingTooMuchRequestException("invokeAsync call the addr[" + addr + "] timeout");
                 }
+                // 核心
                 this.invokeAsyncImpl(channel, request, timeoutMillis - costTime, invokeCallback);
             } catch (RemotingSendRequestException e) {
                 log.warn("invokeAsync: send request exception, so close the channel[{}]", addr);

@@ -494,6 +494,7 @@ public class MQClientAPIImpl {
                 if (timeoutMillis < costTimeAsync) {
                     throw new RemotingTooMuchRequestException("sendMessage call timeout");
                 }
+                // 异步发送
                 this.sendMessageAsync(addr, brokerName, msg, timeoutMillis - costTimeAsync, request, sendCallback, topicPublishInfo, instance,
                         retryTimesWhenSendFailed, times, context, producer);
                 return null;
@@ -622,6 +623,7 @@ public class MQClientAPIImpl {
                                  final DefaultMQProducerImpl producer
     ) {
         int tmp = curTimes.incrementAndGet();
+        // 异步重试发送
         if (needRetry && tmp <= timesTotal) {
             String retryBrokerName = brokerName;//by default, it will send to the same broker
             if (topicPublishInfo != null) { //select one message queue accordingly, in order to determine which broker to send
