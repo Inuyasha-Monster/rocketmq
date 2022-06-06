@@ -17,9 +17,11 @@
 package org.apache.rocketmq.remoting.netty;
 
 import io.netty.channel.Channel;
+
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.rocketmq.remoting.InvokeCallback;
 import org.apache.rocketmq.remoting.common.SemaphoreReleaseOnlyOnce;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
@@ -30,6 +32,8 @@ public class ResponseFuture {
     private final long timeoutMillis;
     private final InvokeCallback invokeCallback;
     private final long beginTimestamp = System.currentTimeMillis();
+
+    // 设置单位为1的倒计时锁
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     private final SemaphoreReleaseOnlyOnce once;
@@ -40,7 +44,7 @@ public class ResponseFuture {
     private volatile Throwable cause;
 
     public ResponseFuture(Channel channel, int opaque, long timeoutMillis, InvokeCallback invokeCallback,
-        SemaphoreReleaseOnlyOnce once) {
+                          SemaphoreReleaseOnlyOnce once) {
         this.opaque = opaque;
         this.processChannel = channel;
         this.timeoutMillis = timeoutMillis;
@@ -68,10 +72,16 @@ public class ResponseFuture {
     }
 
     public RemotingCommand waitResponse(final long timeoutMillis) throws InterruptedException {
+        // 等待唤醒线程，并设置超时时间
         this.countDownLatch.await(timeoutMillis, TimeUnit.MILLISECONDS);
         return this.responseCommand;
     }
 
+    /**
+     * 设置broker的响应结果并唤醒锁上的阻塞线程
+     *
+     * @param responseCommand
+     */
     public void putResponse(final RemotingCommand responseCommand) {
         this.responseCommand = responseCommand;
         this.countDownLatch.countDown();
@@ -124,13 +134,13 @@ public class ResponseFuture {
     @Override
     public String toString() {
         return "ResponseFuture [responseCommand=" + responseCommand
-            + ", sendRequestOK=" + sendRequestOK
-            + ", cause=" + cause
-            + ", opaque=" + opaque
-            + ", processChannel=" + processChannel
-            + ", timeoutMillis=" + timeoutMillis
-            + ", invokeCallback=" + invokeCallback
-            + ", beginTimestamp=" + beginTimestamp
-            + ", countDownLatch=" + countDownLatch + "]";
+                + ", sendRequestOK=" + sendRequestOK
+                + ", cause=" + cause
+                + ", opaque=" + opaque
+                + ", processChannel=" + processChannel
+                + ", timeoutMillis=" + timeoutMillis
+                + ", invokeCallback=" + invokeCallback
+                + ", beginTimestamp=" + beginTimestamp
+                + ", countDownLatch=" + countDownLatch + "]";
     }
 }
