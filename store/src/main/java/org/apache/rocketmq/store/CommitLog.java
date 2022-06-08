@@ -621,6 +621,7 @@ public class CommitLog {
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
                 || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
             // Delay Delivery
+            // 延时消息逻辑
             if (msg.getDelayTimeLevel() > 0) {
                 if (msg.getDelayTimeLevel() > this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel()) {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
@@ -650,10 +651,12 @@ public class CommitLog {
         }
 
         PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+        // 将msg打进 encoderBuffer 中
         PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
         if (encodeResult != null) {
             return CompletableFuture.completedFuture(encodeResult);
         }
+        // 然后将上述的 encoderBuffer 字节直接内存缓冲区，设置到msg的 encoderBuffer 中
         msg.setEncodedBuff(putMessageThreadLocal.getEncoder().encoderBuffer);
         PutMessageContext putMessageContext = new PutMessageContext(generateKey(putMessageThreadLocal.getKeyBuilder(), msg));
 
@@ -667,8 +670,8 @@ public class CommitLog {
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
             this.beginTimeInLock = beginLockTimestamp;
 
-            // Here settings are stored timestamp, in order to ensure an orderly
-            // global
+            // Here settings are stored timestamp, in order to ensure an orderly global
+            // 设置消息的存储时间，因为上锁了所以可以保证全局有序
             msg.setStoreTimestamp(beginLockTimestamp);
 
             if (null == mappedFile || mappedFile.isFull()) {
@@ -1297,21 +1300,26 @@ public class CommitLog {
                                             PutMessageContext putMessageContext) {
             // STORETIMESTAMP + STOREHOSTADDRESS + OFFSET <br>
 
-            // PHY OFFSET
+            // PHY OFFSET fileFromOffset 表示当前文件的开始物理位置
+            // fileFromOffset+byteBuffer.position() 代表当前新消息的开始的物理位置
             long wroteOffset = fileFromOffset + byteBuffer.position();
 
+            // 定义消息Id的生产逻辑
             Supplier<String> msgIdSupplier = () -> {
                 int sysflag = msgInner.getSysFlag();
                 int msgIdLen = (sysflag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 + 8 : 16 + 4 + 8;
                 ByteBuffer msgIdBuffer = ByteBuffer.allocate(msgIdLen);
                 MessageExt.socketAddress2ByteBuffer(msgInner.getStoreHost(), msgIdBuffer);
+                // flip表示反转：从写入模式切换为读模式
                 msgIdBuffer.clear();//because socketAddress2ByteBuffer flip the buffer
                 msgIdBuffer.putLong(msgIdLen - 8, wroteOffset);
                 return UtilAll.bytes2string(msgIdBuffer.array());
             };
 
             // Record ConsumeQueue information
+            // {topicName}-{queueId} 例如：topicTest-0
             String key = putMessageContext.getTopicQueueTableKey();
+            // 获取当前主题对应consumerQueue的偏移量
             Long queueOffset = CommitLog.this.topicQueueTable.get(key);
             if (null == queueOffset) {
                 queueOffset = 0L;
@@ -1338,11 +1346,16 @@ public class CommitLog {
                     break;
             }
 
+            // 该 encoderBuffer 是已经包含了所有msg内容的字节缓冲区
             ByteBuffer preEncodeBuffer = msgInner.getEncodedBuff();
             final int msgLen = preEncodeBuffer.getInt(0);
 
             // Determines whether there is sufficient free space
-            if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
+            // 判断当前commitFile是否还有剩余足够的空间
+            // maxBlank = 当前文件剩余的可用空间
+            // 约定一个message不能跨越2个commit文件
+            // 每个commit文件约定预留8个字节来存储末尾的魔数
+            if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) { // 消息长度+8个字节的魔数 > 最大剩余空间
                 this.msgStoreItemMemory.clear();
                 // 1 TOTALSIZE
                 this.msgStoreItemMemory.putInt(maxBlank);
@@ -1357,6 +1370,8 @@ public class CommitLog {
                         msgIdSupplier, msgInner.getStoreTimestamp(),
                         queueOffset, CommitLog.this.defaultMessageStore.now() - beginTimeMills);
             }
+
+            // TODO: 2022/6/8 明天继续消息的存储源码分析
 
             int pos = 4 + 4 + 4 + 4 + 4;
             // 6 QUEUEOFFSET
@@ -1542,6 +1557,7 @@ public class CommitLog {
 
             final int bodyLength = msgInner.getBody() == null ? 0 : msgInner.getBody().length;
 
+            // 计算消息总的字节长度
             final int msgLen = calMsgLength(msgInner.getSysFlag(), bodyLength, topicLength, propertiesLength);
 
             // Exceeds the maximum message
@@ -1592,7 +1608,7 @@ public class CommitLog {
             this.encoderBuffer.putShort((short) propertiesLength);
             if (propertiesLength > 0)
                 this.encoderBuffer.put(propertiesData);
-
+            // 反转，接下里就可以读取内容了
             encoderBuffer.flip();
             return null;
         }

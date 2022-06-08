@@ -326,7 +326,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             // 处理事务消息的存储
             putMessageResult = this.brokerController.getTransactionalMessageService().asyncPrepareMessage(msgInner);
         } else {
-            // 处理其他消息存储
+            // 处理其他消息存储，包括普通消息事务commit或者rollback等
             putMessageResult = this.brokerController.getMessageStore().asyncPutMessage(msgInner);
         }
         // 具体处理消息存储逻辑
