@@ -668,6 +668,7 @@ public class CommitLog {
         // 顺序写数据需要上锁
         putMessageLock.lock(); //spin or ReentrantLock ,depending on store config
         try {
+            // 选择最新的一个mapFile来保存数据
             MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
             this.beginTimeInLock = beginLockTimestamp;
@@ -676,6 +677,7 @@ public class CommitLog {
             // 设置消息的存储时间，因为上锁了所以可以保证全局有序
             msg.setStoreTimestamp(beginLockTimestamp);
 
+            // 如果文件为空或者文件写满（写满：写指针指向文件末尾）则尝试创建文件
             if (null == mappedFile || mappedFile.isFull()) {
                 mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
             }
@@ -1388,6 +1390,7 @@ public class CommitLog {
 
             final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
             // Write messages to the queue buffer
+            // TODO: 2022/6/9 关键：将消息的buffer写入到文件对应的buffer
             byteBuffer.put(preEncodeBuffer);
             msgInner.setEncodedBuff(null);
             // 小细节：同时测量 page cache 的写入耗时

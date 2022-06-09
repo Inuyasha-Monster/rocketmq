@@ -161,6 +161,7 @@ public class MappedFile extends ReferenceResource {
         ensureDirOK(this.file.getParent());
 
         try {
+            // 创建文件并设置返回读写模式的文件通道
             this.fileChannel = new RandomAccessFile(this.file, "rw").getChannel();
             this.mappedByteBuffer = this.fileChannel.map(MapMode.READ_WRITE, 0, fileSize);
             TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(fileSize);
@@ -209,7 +210,14 @@ public class MappedFile extends ReferenceResource {
         int currentPos = this.wrotePosition.get();
 
         if (currentPos < this.fileSize) {
-            // 判断是否是使用直接内存还是page cache
+
+            /**
+             * 1、仅仅是开启堆外缓冲池 + 异步刷盘 + 主节点 的时候 writeBuffer 才会从堆外缓冲池中获取
+             * 2、writeBuffer/mappedByteBuffer 的position始终为0，limit始终等于capacity
+             * 3、xxx.slice() 是根据原始buffer的 position和limit来创建的，所以需要重新设置position偏移量，且跟原始buffer的position和limit互补影响
+             */
+
+            // 判断是否是使用直接内存还是mapFile
             ByteBuffer byteBuffer = writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
             // 设置buf的写偏移量
             byteBuffer.position(currentPos);
@@ -224,7 +232,7 @@ public class MappedFile extends ReferenceResource {
             } else {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
-            // 推动写的指针右推移当前消息字节大小
+            // TODO: 2022/6/9 推动写的指针右推移当前消息字节大小
             this.wrotePosition.addAndGet(result.getWroteBytes());
             this.storeTimestamp = result.getStoreTimestamp();
             return result;
@@ -335,6 +343,7 @@ public class MappedFile extends ReferenceResource {
         int writePos = this.wrotePosition.get();
         int lastCommittedPosition = this.committedPosition.get();
 
+        // 如果还有剩余需要提交的数据范围
         if (writePos - lastCommittedPosition > 0) {
             try {
                 ByteBuffer byteBuffer = writeBuffer.slice();

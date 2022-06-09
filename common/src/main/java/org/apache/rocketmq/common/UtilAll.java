@@ -86,8 +86,11 @@ public class UtilAll {
 
     public static String offset2FileName(final long offset) {
         final NumberFormat nf = NumberFormat.getInstance();
+        // 设置整数位数
         nf.setMinimumIntegerDigits(20);
+        // 设置小数位数
         nf.setMaximumFractionDigits(0);
+        // false=表示数字之间没有分隔符，例如有分隔符的样子：1,234,456
         nf.setGroupingUsed(false);
         return nf.format(offset);
     }

@@ -209,6 +209,7 @@ public class MappedFileQueue {
             createOffset = mappedFileLast.getFileFromOffset() + this.mappedFileSize;
         }
 
+        // 重新创建文件
         if (createOffset != -1 && needCreate) {
             return tryCreateMappedFile(createOffset);
         }
@@ -217,9 +218,12 @@ public class MappedFileQueue {
     }
 
     protected MappedFile tryCreateMappedFile(long createOffset) {
+        // 构建第一个文件的路径
         String nextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset);
+        // 构建第二个文件的路径
         String nextNextFilePath = this.storePath + File.separator + UtilAll.offset2FileName(createOffset
                 + this.mappedFileSize);
+        // 创建2个文件
         return doCreateMappedFile(nextFilePath, nextNextFilePath);
     }
 
