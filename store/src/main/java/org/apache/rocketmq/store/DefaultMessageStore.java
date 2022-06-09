@@ -1995,6 +1995,9 @@ public class DefaultMessageStore implements MessageStore {
 
     class ReputMessageService extends ServiceThread {
 
+        /**
+         * 构建consumerQueue的物理偏移量
+         */
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -2038,6 +2041,7 @@ public class DefaultMessageStore implements MessageStore {
             }
             for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
 
+                // 如果启用复制并且 reputFromOffset大于复制确认偏移量直接退出
                 if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
                         && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
                     break;
@@ -2055,15 +2059,21 @@ public class DefaultMessageStore implements MessageStore {
 
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
+                                    // 构建索引文件包括：consumerQueue + indexFile
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                             && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()
                                             && DefaultMessageStore.this.messageArrivingListener != null) {
-                                        DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),
-                                                dispatchRequest.getQueueId(), dispatchRequest.getConsumeQueueOffset() + 1,
-                                                dispatchRequest.getTagsCode(), dispatchRequest.getStoreTimestamp(),
-                                                dispatchRequest.getBitMap(), dispatchRequest.getPropertiesMap());
+                                        // 触发消息抵达事件回调函数，触发消费者消费消息
+                                        DefaultMessageStore.this.messageArrivingListener.arriving(
+                                                dispatchRequest.getTopic(),
+                                                dispatchRequest.getQueueId(),
+                                                dispatchRequest.getConsumeQueueOffset() + 1,
+                                                dispatchRequest.getTagsCode(),
+                                                dispatchRequest.getStoreTimestamp(),
+                                                dispatchRequest.getBitMap(),
+                                                dispatchRequest.getPropertiesMap());
                                         notifyMessageArrive4MultiQueue(dispatchRequest);
                                     }
 
