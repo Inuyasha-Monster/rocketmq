@@ -251,8 +251,8 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
             this.nettyEventExecutor.start();
         }
 
+        // 1s一次的响应future扫描
         this.timer.scheduleAtFixedRate(new TimerTask() {
-
             @Override
             public void run() {
                 try {

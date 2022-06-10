@@ -110,6 +110,7 @@ public class BrokerStartup {
             // 存储配置
             final MessageStoreConfig messageStoreConfig = new MessageStoreConfig();
 
+            // 如果是从机器设置为百分之30
             if (BrokerRole.SLAVE == messageStoreConfig.getBrokerRole()) {
                 int ratio = messageStoreConfig.getAccessMessageInMemoryMaxRatio() - 10;
                 messageStoreConfig.setAccessMessageInMemoryMaxRatio(ratio);

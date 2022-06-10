@@ -702,6 +702,8 @@ public class DefaultMessageStore implements MessageStore {
                         long diff = maxOffsetPy - maxPhyOffsetPulling;
                         long memory = (long) (StoreUtil.TOTAL_PHYSICAL_MEMORY_SIZE
                                 * (this.messageStoreConfig.getAccessMessageInMemoryMaxRatio() / 100.0));
+                        // 如果 最大的物理偏移量减去拉取的最大物理偏移量的diff 大于 当前机器的内存的百分之40 则
+                        // 建议从「从机器」拉取消息进行消费
                         getResult.setSuggestPullingFromSlave(diff > memory);
                     } finally {
 

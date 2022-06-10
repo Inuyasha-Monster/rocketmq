@@ -385,6 +385,7 @@ public abstract class NettyRemotingAbstract {
             Entry<Integer, ResponseFuture> next = it.next();
             ResponseFuture rep = next.getValue();
 
+            // 过期的请求，这里的 +1000 是因为固定延时频率为1s
             if ((rep.getBeginTimestamp() + rep.getTimeoutMillis() + 1000) <= System.currentTimeMillis()) {
                 rep.release();
                 it.remove();
