@@ -1995,6 +1995,9 @@ public class DefaultMessageStore implements MessageStore {
         }
     }
 
+    /**
+     * 构建索引文件
+     */
     class ReputMessageService extends ServiceThread {
 
         /**
@@ -2061,7 +2064,7 @@ public class DefaultMessageStore implements MessageStore {
 
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
-                                    // 构建索引文件包括：consumerQueue + indexFile
+                                    // TODO: 2022/6/10 构建索引文件包括：consumerQueue + indexFile
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()

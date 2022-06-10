@@ -1020,6 +1020,7 @@ public class CommitLog {
 
     /**
      * 基本流程跟异步FlushRealTimeService差不多
+     * 1、mappedFileQueue.commit 具体是通过 writerBuffer 写到 fileChannel 中后 fileChannel.force 进行刷盘
      */
     class CommitRealTimeService extends FlushCommitLogService {
 
@@ -1081,6 +1082,7 @@ public class CommitLog {
     /**
      * 异步刷盘实现（非瞬时内存池）
      * 1、默认固定频率500ms一次刷盘，且需要看是否累计16kb或者距离上次刷盘累计超过10s
+     * 2、刷盘方式跟同步一致：mappedFileQueue.flush 具体通过 mappedByteBuffer.force 进行page cache刷盘到disk
      */
     class FlushRealTimeService extends FlushCommitLogService {
         private long lastFlushTimestamp = 0;
@@ -1203,6 +1205,7 @@ public class CommitLog {
      * 同步刷盘实现：
      * 1、主要是通过10ms一次的刷盘行为
      * 2、添加刷盘请求立即唤醒刷盘线程进行刷盘
+     * 3、mappedFileQueue.flush 通过具体 mappedByteBuffer.force 进行page cache刷盘到disk
      */
     class GroupCommitService extends FlushCommitLogService {
         private volatile LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<GroupCommitRequest>();
@@ -1244,6 +1247,7 @@ public class CommitLog {
                         flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                     }
 
+                    // 设置同步刷盘结果并唤醒调用者线程
                     req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
                 }
 
