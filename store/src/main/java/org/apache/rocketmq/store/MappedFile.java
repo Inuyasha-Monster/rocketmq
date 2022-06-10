@@ -540,6 +540,10 @@ public class MappedFile extends ReferenceResource {
         log.info("mapped file warm-up done. mappedFile={}, costTime={}", this.getFileName(),
                 System.currentTimeMillis() - beginTime);
 
+        /**
+         * 上面我们完成了写假值的过程，相当于是完成了映射文件到物理文件的映射，但是此时如果空间不够了，
+         * 该内存空间会被交换的swap区中、这样整个写的速度会变慢,告诉操作系统我要锁住这块内存，不管你内存够不够
+         */
         this.mlock();
     }
 
@@ -567,6 +571,11 @@ public class MappedFile extends ReferenceResource {
         this.firstCreateInQueue = firstCreateInQueue;
     }
 
+    /**
+     * 第一步：对当前映射文件的每个内存页写入一个字节0.当刷盘策略为同步刷盘时，执行强制刷盘，并且是每修改pages(默认是16MB)个分页刷一次盘
+     * 第二步：将当前MappedFile全部的地址空间锁定在物理存储中，防止其被交换到swap空间。再调用madvise，传入 MADV_WILLNEED 策略，将刚刚锁住的内存预热，其实就是告诉内核，
+     * 我马上就要用（MADV_WILLNEED）这块内存，先做虚拟内存到物理内存的映射，防止正式使用时产生缺页中断。
+     */
     public void mlock() {
         final long beginTime = System.currentTimeMillis();
         final long address = ((DirectBuffer) (this.mappedByteBuffer)).address();
@@ -577,6 +586,9 @@ public class MappedFile extends ReferenceResource {
         }
 
         {
+            /**
+             * madvise系统调用有两个参数：地址指针、区间长度。madvise会向内核提供一个针对于进程虚拟地址区间的I/O建议，内核可能会采纳这个{建议}，进行预读。
+             */
             int ret = LibC.INSTANCE.madvise(pointer, new NativeLong(this.fileSize), LibC.MADV_WILLNEED);
             log.info("madvise {} {} {} ret = {} time consuming = {}", address, this.fileName, this.fileSize, ret, System.currentTimeMillis() - beginTime);
         }
