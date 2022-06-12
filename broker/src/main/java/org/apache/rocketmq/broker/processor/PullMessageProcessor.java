@@ -239,15 +239,21 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                     this.brokerController.getConsumerFilterManager());
         }
 
-        final GetMessageResult getMessageResult =
-                this.brokerController.getMessageStore().getMessage(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
-                        requestHeader.getQueueId(), requestHeader.getQueueOffset(), requestHeader.getMaxMsgNums(), messageFilter);
+        // TODO: 2022/6/12 获取消息返回结果
+        final GetMessageResult getMessageResult = this.brokerController.getMessageStore().getMessage(
+                requestHeader.getConsumerGroup(),
+                requestHeader.getTopic(),
+                requestHeader.getQueueId(), // 队列Id
+                requestHeader.getQueueOffset(), // 队列的逻辑偏移量
+                requestHeader.getMaxMsgNums(), // 拉取最新消息数
+                messageFilter /*消息过滤器*/);
         if (getMessageResult != null) {
             response.setRemark(getMessageResult.getStatus().name());
             responseHeader.setNextBeginOffset(getMessageResult.getNextBeginOffset());
             responseHeader.setMinOffset(getMessageResult.getMinOffset());
             responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
 
+            // 设置consumer是否从「从机」拉取消息
             if (getMessageResult.isSuggestPullingFromSlave()) {
                 responseHeader.setSuggestWhichBrokerId(subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
             } else {
@@ -372,6 +378,9 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             }
 
             switch (response.getCode()) {
+                /**
+                 * 获取到消息立即返回给consumer client
+                 */
                 case ResponseCode.SUCCESS:
 
                     this.brokerController.getBrokerStatsManager().incGroupGetNums(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
@@ -381,14 +390,19 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                             getMessageResult.getBufferTotalSize());
 
                     this.brokerController.getBrokerStatsManager().incBrokerGetNums(getMessageResult.getMessageCount());
+                    // 是否启用堆内内存
                     if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
-                        final byte[] r = this.readGetMessageResult(getMessageResult, requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId());
+                        final byte[] r = this.readGetMessageResult(getMessageResult,
+                                requestHeader.getConsumerGroup(),
+                                requestHeader.getTopic(),
+                                requestHeader.getQueueId());
                         this.brokerController.getBrokerStatsManager().incGroupGetLatency(requestHeader.getConsumerGroup(),
                                 requestHeader.getTopic(), requestHeader.getQueueId(),
                                 (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
                         response.setBody(r);
                     } else {
                         try {
+                            // 利用netty的 channel.writeAndFlush(fileRegion) 实现sendFile的 memory zero-copy 的Linux的api调用
                             FileRegion fileRegion =
                                     new ManyMessageTransfer(response.encodeHeader(getMessageResult.getBufferTotalSize()), getMessageResult);
                             channel.writeAndFlush(fileRegion).addListener(new ChannelFutureListener() {
@@ -405,6 +419,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                             getMessageResult.release();
                         }
 
+                        // 发送响应client之后取消设置null响应
                         response = null;
                     }
                     break;
@@ -421,7 +436,9 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                         int queueId = requestHeader.getQueueId();
                         PullRequest pullRequest = new PullRequest(request, channel, pollingTimeMills,
                                 this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
+                        // 暂时没有发现消息，临时挂起consumer请求一段时间，如果有消息了会立即返回消息给consumer或者达到挂起超时时间
                         this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
+                        // 因为挂起了请求所以设置空响应
                         response = null;
                         break;
                     }
@@ -471,6 +488,8 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             this.brokerController.getConsumerOffsetManager().commitOffset(RemotingHelper.parseChannelRemoteAddr(channel),
                     requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getCommitOffset());
         }
+
+        // 最后响应结果由 org.apache.rocketmq.remoting.netty.RemotingResponseCallback 处理响应返回给client
         return response;
     }
 
@@ -491,6 +510,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
 
     private byte[] readGetMessageResult(final GetMessageResult getMessageResult, final String group, final String topic,
                                         final int queueId) {
+        // 从堆上分配内存
         final ByteBuffer byteBuffer = ByteBuffer.allocate(getMessageResult.getBufferTotalSize());
 
         long storeTimestamp = 0;

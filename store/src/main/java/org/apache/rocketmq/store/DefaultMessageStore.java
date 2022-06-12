@@ -588,11 +588,15 @@ public class DefaultMessageStore implements MessageStore {
 
         final long maxOffsetPy = this.commitLog.getMaxOffset();
 
+        // 寻找对应的消费队列
         ConsumeQueue consumeQueue = findConsumeQueue(topic, queueId);
         if (consumeQueue != null) {
+            // 消费队列的最小偏移量
             minOffset = consumeQueue.getMinOffsetInQueue();
+            // 消费队列的最大偏移量
             maxOffset = consumeQueue.getMaxOffsetInQueue();
 
+            // 各种非法情况
             if (maxOffset == 0) {
                 status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
                 nextBeginOffset = nextOffsetCorrection(offset, 0);
@@ -626,8 +630,11 @@ public class DefaultMessageStore implements MessageStore {
 
                         ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
                         for (; i < bufferConsumeQueue.getSize() && i < maxFilterMessageCount; i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
+                            // 读取20字节的前8个字节 = commitLog的物理位置
                             long offsetPy = bufferConsumeQueue.getByteBuffer().getLong();
+                            // 中间4个字节 = 消息物理字节大小
                             int sizePy = bufferConsumeQueue.getByteBuffer().getInt();
+                            // tag的hash值
                             long tagsCode = bufferConsumeQueue.getByteBuffer().getLong();
 
                             maxPhyOffsetPulling = offsetPy;
@@ -666,6 +673,7 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
+                            // 读取对应commitLog的一条消息
                             SelectMappedBufferResult selectResult = this.commitLog.getMessage(offsetPy, sizePy);
                             if (null == selectResult) {
                                 if (getResult.getBufferTotalSize() == 0) {
@@ -676,6 +684,7 @@ public class DefaultMessageStore implements MessageStore {
                                 continue;
                             }
 
+                            // 检查是否tag匹配
                             if (messageFilter != null
                                     && !messageFilter.isMatchedByCommitLog(selectResult.getByteBuffer().slice(), null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
