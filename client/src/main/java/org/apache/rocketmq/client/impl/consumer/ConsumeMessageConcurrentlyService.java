@@ -443,7 +443,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                     .incConsumeRT(ConsumeMessageConcurrentlyService.this.consumerGroup, messageQueue.getTopic(), consumeRT);
 
             if (!processQueue.isDropped()) {
-                // 处理消费业务逻辑的结果
+                // 处理消费业务逻辑的结果，内部更新上报消费进度，如果是集群消费模式
                 ConsumeMessageConcurrentlyService.this.processConsumeResult(status, context, this);
             } else {
                 log.warn("processQueue is dropped without process consume result. messageQueue={}, msgs={}", messageQueue, msgs);

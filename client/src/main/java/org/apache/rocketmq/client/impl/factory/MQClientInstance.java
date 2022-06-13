@@ -987,6 +987,7 @@ public class MQClientInstance {
     }
 
     public void doRebalance() {
+        // 考虑多个消费者组的情况，因为多个consumer公用的一个 MQClientInstance 对象
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
