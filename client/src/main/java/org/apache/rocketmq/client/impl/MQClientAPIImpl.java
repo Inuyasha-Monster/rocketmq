@@ -909,8 +909,10 @@ public class MQClientAPIImpl {
         requestHeader.setConsumerGroup(consumerGroup);
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_CONSUMER_LIST_BY_GROUP, requestHeader);
 
-        RemotingCommand response = this.remotingClient.invokeSync(MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
-                request, timeoutMillis);
+        RemotingCommand response = this.remotingClient.invokeSync(
+                MixAll.brokerVIPChannel(this.clientConfig.isVipChannelEnabled(), addr),
+                request,
+                timeoutMillis);
         assert response != null;
         switch (response.getCode()) {
             case ResponseCode.SUCCESS: {

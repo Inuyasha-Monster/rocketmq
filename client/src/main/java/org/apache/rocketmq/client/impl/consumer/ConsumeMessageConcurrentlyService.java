@@ -89,17 +89,17 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
     }
 
     public void start() {
+        // 默认15分钟为消费阻塞线程的最大时长
         this.cleanExpireMsgExecutors.scheduleAtFixedRate(new Runnable() {
-
             @Override
             public void run() {
                 try {
+                    // 清理过期的消息
                     cleanExpireMsg();
                 } catch (Throwable e) {
                     log.error("scheduleAtFixedRate cleanExpireMsg exception", e);
                 }
             }
-
         }, this.defaultMQPushConsumer.getConsumeTimeout(), this.defaultMQPushConsumer.getConsumeTimeout(), TimeUnit.MINUTES);
     }
 

@@ -36,8 +36,11 @@ public class RebalanceService extends ServiceThread {
     public void run() {
         log.info(this.getServiceName() + " service started");
 
+        // 20s一次执行重平衡逻辑
         while (!this.isStopped()) {
             this.waitForRunning(waitInterval);
+            // 执行平衡逻辑
+            // TODO: 2022/6/13 有待研究透彻
             this.mqClientFactory.doRebalance();
         }
 

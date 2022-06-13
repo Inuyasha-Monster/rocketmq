@@ -90,6 +90,9 @@ public class MQClientInstance {
     private final InternalLogger log = ClientLogger.getLog();
     private final ClientConfig clientConfig;
     private final int instanceIndex;
+    /**
+     * {clientIp}@{instanceName}@{unitName}
+     */
     private final String clientId;
     private final long bootTimestamp = System.currentTimeMillis();
     private final ConcurrentMap<String/* group */, MQProducerInner> producerTable = new ConcurrentHashMap<String, MQProducerInner>();
@@ -470,7 +473,11 @@ public class MQClientInstance {
                 if (addr != null) {
                     try {
                         this.getMQClientAPIImpl().checkClientInBroker(
-                                addr, entry.getKey(), this.clientId, subscriptionData, clientConfig.getMqClientApiTimeout()
+                                addr,
+                                entry.getKey() /* 消费者组名 */,
+                                this.clientId,
+                                subscriptionData,
+                                clientConfig.getMqClientApiTimeout()
                         );
                     } catch (Exception e) {
                         if (e instanceof MQClientException) {
@@ -633,7 +640,8 @@ public class MQClientInstance {
                     TopicRouteData topicRouteData;
                     // 是否默认情况
                     if (isDefault && defaultMQProducer != null) {
-                        topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(defaultMQProducer.getCreateTopicKey(),
+                        topicRouteData = this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(
+                                defaultMQProducer.getCreateTopicKey(),
                                 clientConfig.getMqClientApiTimeout());
                         if (topicRouteData != null) {
                             for (QueueData data : topicRouteData.getQueueDatas()) {
@@ -983,6 +991,7 @@ public class MQClientInstance {
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {
                 try {
+                    // 针对每一个消费者组进行平衡
                     impl.doRebalance();
                 } catch (Throwable e) {
                     log.error("doRebalance exception", e);
@@ -1062,6 +1071,7 @@ public class MQClientInstance {
 
         if (null != brokerAddr) {
             try {
+                // 远程获取消费者组对应的消费者Id集合
                 return this.mQClientAPIImpl.getConsumerIdListByGroup(brokerAddr, group, clientConfig.getMqClientApiTimeout());
             } catch (Exception e) {
                 log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);

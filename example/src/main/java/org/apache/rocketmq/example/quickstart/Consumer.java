@@ -17,6 +17,7 @@
 package org.apache.rocketmq.example.quickstart;
 
 import java.util.List;
+
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
@@ -34,6 +35,8 @@ public class Consumer {
 
         /*
          * Instantiate with specified consumer group name.
+         * 1、默认构造基于平均分配算法的消费策略，例如：4个queue，2个consumer，则一个consumer消费2个队列
+         * 2、默认集群消费模式
          */
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("please_rename_unique_group_name_4");
 
@@ -68,7 +71,7 @@ public class Consumer {
 
             @Override
             public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs,
-                ConsumeConcurrentlyContext context) {
+                                                            ConsumeConcurrentlyContext context) {
                 System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }

@@ -94,6 +94,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
 
     public void start() {
         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
+            // 20s一次锁定mq
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {

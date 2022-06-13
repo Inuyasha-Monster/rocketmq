@@ -18,6 +18,7 @@ package org.apache.rocketmq.client.consumer.rebalance;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
 import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -30,8 +31,10 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
     private final InternalLogger log = ClientLogger.getLog();
 
     @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
+    public List<MessageQueue> allocate(String consumerGroup,
+                                       String currentCID,
+                                       List<MessageQueue> mqAll,
+                                       List<String> cidAll) {
         if (currentCID == null || currentCID.length() < 1) {
             throw new IllegalArgumentException("currentCID is empty");
         }
@@ -45,18 +48,21 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
         List<MessageQueue> result = new ArrayList<MessageQueue>();
         if (!cidAll.contains(currentCID)) {
             log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
-                consumerGroup,
-                currentCID,
-                cidAll);
+                    consumerGroup,
+                    currentCID,
+                    cidAll);
             return result;
         }
 
         int index = cidAll.indexOf(currentCID);
         int mod = mqAll.size() % cidAll.size();
-        int averageSize =
-            mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
-                + 1 : mqAll.size() / cidAll.size());
+        // 1、如果队列数量小于等于Client数量，则分配数为1
+        // 2、否则根据mod和index判断分配数量
+        int averageSize = mqAll.size() <= cidAll.size() ? 1 :
+                (mod > 0 && index < mod ? mqAll.size() / cidAll.size() + 1 : mqAll.size() / cidAll.size());
+        // 开始分配的索引
         int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
+        // 取平均分配的数与 mqAll.size() - startIndex 的最小值，这里可能出现range=0的情况：clientId数量大于队列数量
         int range = Math.min(averageSize, mqAll.size() - startIndex);
         for (int i = 0; i < range; i++) {
             result.add(mqAll.get((startIndex + i) % mqAll.size()));
