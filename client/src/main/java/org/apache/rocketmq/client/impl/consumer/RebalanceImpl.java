@@ -310,7 +310,7 @@ public abstract class RebalanceImpl {
                         allocateResultSet.addAll(allocateResult);
                     }
 
-                    // 根据分配结果更新处理队列
+                    // 根据分配结果更新处理队列，并且分发拉取消息请求
                     boolean changed = this.updateProcessQueueTableInRebalance(topic, allocateResultSet, isOrder);
                     if (changed) {
                         log.info(
@@ -421,6 +421,7 @@ public abstract class RebalanceImpl {
             }
         }
 
+        // 分发拉取消息的请求
         this.dispatchPullRequest(pullRequestList);
 
         return changed;
