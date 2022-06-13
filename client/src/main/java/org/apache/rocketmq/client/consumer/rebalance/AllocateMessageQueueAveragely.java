@@ -67,6 +67,9 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
         for (int i = 0; i < range; i++) {
             result.add(mqAll.get((startIndex + i) % mqAll.size()));
         }
+
+        // 总结：大概过程就是：能整除，则平均分；不能整除，则cid在mod数内的则多分1个Queue，在mod数外的则少分一个。
+
         return result;
     }
 

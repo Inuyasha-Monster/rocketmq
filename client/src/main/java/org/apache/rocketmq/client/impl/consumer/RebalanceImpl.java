@@ -221,6 +221,10 @@ public abstract class RebalanceImpl {
             for (final Map.Entry<String, SubscriptionData> entry : subTable.entrySet()) {
                 final String topic = entry.getKey();
                 try {
+                    /**
+                     * 前面说过，该分配策略执行时，会将topic下的Queue列表和客户端进行排序，在分配时便会导致排在前面的客户端能分到Queue，且分的Queue会多点。考虑一种情况，如果一个ConsumerGroup订阅了2个topic，Topic_X和Topic_Y,每个topic都有2个Queue，同时该ConsumerGroup下有4个客户端实例，因为Rebalance是根据topic来的，所以不会出现4个Queue被平均消费的情况，结果如下如下：
+                     * https://www.cnblogs.com/jelly12345/p/14845401.html
+                     */
                     // 针对每一个主题进行重平衡
                     this.rebalanceByTopic(topic, isOrder);
                 } catch (Throwable e) {
@@ -231,6 +235,7 @@ public abstract class RebalanceImpl {
             }
         }
 
+        // 移除Queue中topic不是该实例订阅的对象。
         this.truncateMessageQueueNotMyTopic();
     }
 
@@ -344,6 +349,15 @@ public abstract class RebalanceImpl {
         }
     }
 
+    /**
+     * 前面提到，RebalanceImpl只有一个processQueueTable属性，该属性维护了当前客户端真在处理的所有Queue，
+     * 以及Queue对应的消费进度，updateProcessQueueTableInRebalance则会更新该属性。
+     *
+     * @param topic
+     * @param mqSet
+     * @param isOrder
+     * @return
+     */
     private boolean updateProcessQueueTableInRebalance(final String topic,
                                                        final Set<MessageQueue> mqSet,
                                                        final boolean isOrder) {
@@ -356,21 +370,24 @@ public abstract class RebalanceImpl {
             ProcessQueue pq = next.getValue();
 
             if (mq.getTopic().equals(topic)) {
+                // 如果分配的队列集合中不包含当前mq，表示这个mq不属于当前client，需要移除
                 if (!mqSet.contains(mq)) {
                     pq.setDropped(true);
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                         it.remove();
+                        // 设置标记
                         changed = true;
                         log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
                     }
-                } else if (pq.isPullExpired()) {
+                } else if (pq.isPullExpired()) { // mq超时了：距离上一次拉取时间大于120秒了
                     switch (this.consumeType()) {
                         case CONSUME_ACTIVELY:
                             break;
-                        case CONSUME_PASSIVELY:
+                        case CONSUME_PASSIVELY: // push模式，同理移除当前mq
                             pq.setDropped(true);
                             if (this.removeUnnecessaryMessageQueue(mq, pq)) {
                                 it.remove();
+                                // 设置标记
                                 changed = true;
                                 log.error("[BUG]doRebalance, {}, remove unnecessary mq, {}, because pull is pause, so try to fixed it",
                                         consumerGroup, mq);
@@ -391,11 +408,13 @@ public abstract class RebalanceImpl {
                     continue;
                 }
 
+                // 移除脏的mq的消费进度，push模型的集群模式的实际逻辑是map中移除该mq
                 this.removeDirtyOffset(mq);
                 ProcessQueue pq = new ProcessQueue();
 
                 long nextOffset = -1L;
                 try {
+                    // 重新计算加入新的mq的起始偏移量
                     nextOffset = this.computePullFromWhereWithException(mq);
                 } catch (Exception e) {
                     log.info("doRebalance, {}, compute offset failed, {}", consumerGroup, mq);
@@ -403,6 +422,7 @@ public abstract class RebalanceImpl {
                 }
 
                 if (nextOffset >= 0) {
+                    // 加入当前消费处理队列
                     ProcessQueue pre = this.processQueueTable.putIfAbsent(mq, pq);
                     if (pre != null) {
                         log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
@@ -413,6 +433,7 @@ public abstract class RebalanceImpl {
                         pullRequest.setNextOffset(nextOffset);
                         pullRequest.setMessageQueue(mq);
                         pullRequest.setProcessQueue(pq);
+                        // 构建一个拉取请求后续分发
                         pullRequestList.add(pullRequest);
                         changed = true;
                     }
