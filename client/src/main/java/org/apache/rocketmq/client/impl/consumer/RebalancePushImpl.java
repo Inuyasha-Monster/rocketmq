@@ -86,7 +86,7 @@ public class RebalancePushImpl extends RebalanceImpl {
     public boolean removeUnnecessaryMessageQueue(MessageQueue mq, ProcessQueue pq) {
         // 移除之前，上报当前mq的消费进度
         this.defaultMQPushConsumerImpl.getOffsetStore().persist(mq);
-        // 从当前map中移除该mq
+        // 从当前map中移除该mq，然后定期5s上报给broker
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly()
             && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {

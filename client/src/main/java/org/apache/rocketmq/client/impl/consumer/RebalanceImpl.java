@@ -408,7 +408,7 @@ public abstract class RebalanceImpl {
                     continue;
                 }
 
-                // 移除脏的mq的消费进度，push模型的集群模式的实际逻辑是map中移除该mq
+                // 移除不属于自己的mq的消费进度，push模型的集群模式的实际逻辑是map中移除该mq
                 this.removeDirtyOffset(mq);
                 ProcessQueue pq = new ProcessQueue();
 

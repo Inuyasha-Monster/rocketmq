@@ -296,7 +296,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 break;
         }
 
-        // TODO: 2022/6/12 移除消费过的消息
+        // 移除消费过的消息，返回最新的消费偏移量上报
         long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
         /*
          * 消费端成功消息完消费后，会采用最小位点提交机制，确保消费不丢失。
