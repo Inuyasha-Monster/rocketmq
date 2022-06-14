@@ -669,6 +669,7 @@ public class DefaultMessageStore implements MessageStore {
 
                             // 进行消息过滤，注意tag模式只是比较了hash值，并没有二次比较tag值而是交给了client去处理了
                             // 不知道为什么不顺带直接过滤了？
+                            // 猜测：将这部分算力交给client进行分担，且出现hash冲突也是小概率情况
                             if (messageFilter != null && !messageFilter.isMatchedByConsumeQueue(isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {
                                 if (getResult.getBufferTotalSize() == 0) {
                                     status = GetMessageStatus.NO_MATCHED_MESSAGE;
@@ -2157,8 +2158,13 @@ public class DefaultMessageStore implements MessageStore {
                     queueId = 0;
                 }
                 DefaultMessageStore.this.messageArrivingListener.arriving(
-                        queueName, queueId, queueOffset + 1, dispatchRequest.getTagsCode(),
-                        dispatchRequest.getStoreTimestamp(), dispatchRequest.getBitMap(), dispatchRequest.getPropertiesMap());
+                        queueName,
+                        queueId,
+                        queueOffset + 1,
+                        dispatchRequest.getTagsCode(),
+                        dispatchRequest.getStoreTimestamp(),
+                        dispatchRequest.getBitMap(),
+                        dispatchRequest.getPropertiesMap());
             }
         }
 

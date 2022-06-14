@@ -78,6 +78,7 @@ public class PullRequestHoldService extends ServiceThread {
                 }
 
                 long beginLockTimestamp = this.systemClock.now();
+                // 检查所有的hold住的请求判断超时直接返回结果给client
                 this.checkHoldRequest();
                 long costTime = this.systemClock.now() - beginLockTimestamp;
                 if (costTime > 5 * 1000) {
@@ -127,7 +128,9 @@ public class PullRequestHoldService extends ServiceThread {
 
                 for (PullRequest request : requestList) {
                     long newestOffset = maxOffset;
+                    // 表明想要获取的偏移量大于目前最大值
                     if (newestOffset <= request.getPullFromThisOffset()) {
+                        // 重新获取一遍最大值
                         newestOffset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
                     }
 
@@ -137,14 +140,14 @@ public class PullRequestHoldService extends ServiceThread {
                                 new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap));
                         // match by bit map, need eval again when properties is not null.
                         if (match && properties != null) {
+                            // 执行hash值比较进行消息过滤
                             match = request.getMessageFilter().isMatchedByCommitLog(null, properties);
                         }
 
                         // 发现新的有新的消息抵达，读取对应的消息组装响应，则通过对应的channel发送响应通知client进行消费
                         if (match) {
                             try {
-                                this.brokerController.getPullMessageProcessor()
-                                        .executeRequestWhenWakeup(request.getClientChannel(), request.getRequestCommand());
+                                this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(), request.getRequestCommand());
                             } catch (Throwable e) {
                                 log.error("execute request when wakeup failed.", e);
                             }

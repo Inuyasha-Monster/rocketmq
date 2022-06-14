@@ -383,11 +383,10 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
 
                     this.brokerController.getBrokerStatsManager().incGroupGetNums(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
                             getMessageResult.getMessageCount());
-
                     this.brokerController.getBrokerStatsManager().incGroupGetSize(requestHeader.getConsumerGroup(), requestHeader.getTopic(),
                             getMessageResult.getBufferTotalSize());
-
                     this.brokerController.getBrokerStatsManager().incBrokerGetNums(getMessageResult.getMessageCount());
+
                     // 是否启用堆内内存
                     if (this.brokerController.getBrokerConfig().isTransferMsgByHeap()) {
                         final byte[] r = this.readGetMessageResult(getMessageResult,
@@ -577,6 +576,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             @Override
             public void run() {
                 try {
+                    // 这里的最后一个参数=false，表示不需要挂起请求了
                     final RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false);
 
                     if (response != null) {
