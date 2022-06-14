@@ -316,6 +316,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                             subscriptionData);
 
                     switch (pullResult.getPullStatus()) {
+                        // 服务端返回有找到消息的情况
                         case FOUND:
                             long prevRequestOffset = pullRequest.getNextOffset();
                             pullRequest.setNextOffset(pullResult.getNextBeginOffset());
@@ -361,10 +362,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                             break;
                         case NO_NEW_MSG:
                         case NO_MATCHED_MSG:
+                            // 设置请求的下一个偏移量为拉取结果：nextBeginOffset
                             pullRequest.setNextOffset(pullResult.getNextBeginOffset());
 
+                            // 更新本地的消费偏移量为拉取结果：nextBeginOffset
                             DefaultMQPushConsumerImpl.this.correctTagsOffset(pullRequest);
 
+                            // 立即触发向broker查询后续消息
                             DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
                             break;
                         case OFFSET_ILLEGAL:
@@ -444,8 +448,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.defaultMQPushConsumer.getPullBatchSize(),
                     sysFlag,
                     commitOffsetValue, // 请求拉取消息的时候顺便上报消费进度
-                    BROKER_SUSPEND_MAX_TIME_MILLIS,
-                    CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND,
+                    BROKER_SUSPEND_MAX_TIME_MILLIS, // broker最大挂起请求时间15s
+                    CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND, // client端的请求容忍最大超时时间
                     CommunicationMode.ASYNC,
                     pullCallback
             );

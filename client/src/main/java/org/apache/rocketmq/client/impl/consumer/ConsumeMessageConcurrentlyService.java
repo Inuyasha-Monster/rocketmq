@@ -298,8 +298,15 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
 
         // TODO: 2022/6/12 移除消费过的消息
         long offset = consumeRequest.getProcessQueue().removeMessage(consumeRequest.getMsgs());
+        /*
+         * 消费端成功消息完消费后，会采用最小位点提交机制，确保消费不丢失。
+         * 最小位点提交机制，其实就是将拉取到的消息放入一个TreeMap中，然后消费线程成功消费一条消息后，
+         * 将该消息从TreeMap中移除，再计算位点：
+         *      如果当前TreeMap中还有消息在处理，则返回TreeMap中的第一条消息(最小位点)
+         *      如果当前TreeMap中已没有消息处理，返回的位点为this.queueOffsetMax，queueOffsetMax的表示的是当前消费队列中拉取到的最大消费位点，因为此时拉取到的消息全部消费了
+         */
         if (offset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
-            // 更新偏移量
+            // 更新偏移量(实际为更新内存map，定时上报偏移量)
             this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), offset, true);
         }
     }

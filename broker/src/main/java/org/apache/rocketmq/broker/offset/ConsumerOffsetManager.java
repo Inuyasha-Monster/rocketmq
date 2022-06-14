@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 import org.apache.rocketmq.broker.BrokerController;
 import org.apache.rocketmq.broker.BrokerPathConfigHelper;
 import org.apache.rocketmq.common.ConfigManager;
@@ -38,7 +39,7 @@ public class ConsumerOffsetManager extends ConfigManager {
     protected static final String TOPIC_GROUP_SEPARATOR = "@";
 
     protected ConcurrentMap<String/* topic@group */, ConcurrentMap<Integer, Long>> offsetTable =
-        new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);
+            new ConcurrentHashMap<String, ConcurrentMap<Integer, Long>>(512);
 
     protected transient BrokerController brokerController;
 
@@ -60,7 +61,7 @@ public class ConsumerOffsetManager extends ConfigManager {
                 String group = arrays[1];
 
                 if (null == brokerController.getConsumerManager().findSubscriptionData(group, topic)
-                    && this.offsetBehindMuchThanData(topic, next.getValue())) {
+                        && this.offsetBehindMuchThanData(topic, next.getValue())) {
                     it.remove();
                     log.warn("remove topic offset, {}", topicAtGroup);
                 }
@@ -118,8 +119,7 @@ public class ConsumerOffsetManager extends ConfigManager {
         return groups;
     }
 
-    public void commitOffset(final String clientHost, final String group, final String topic, final int queueId,
-        final long offset) {
+    public void commitOffset(final String clientHost, final String group, final String topic, final int queueId, final long offset) {
         // topic@group
         String key = topic + TOPIC_GROUP_SEPARATOR + group;
         this.commitOffset(clientHost, key, queueId, offset);

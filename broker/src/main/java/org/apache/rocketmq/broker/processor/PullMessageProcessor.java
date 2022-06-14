@@ -399,6 +399,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                         this.brokerController.getBrokerStatsManager().incGroupGetLatency(requestHeader.getConsumerGroup(),
                                 requestHeader.getTopic(), requestHeader.getQueueId(),
                                 (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
+                        // 设置消息内容
                         response.setBody(r);
                     } else {
                         try {
@@ -481,12 +482,15 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         }
 
         boolean storeOffsetEnable = brokerAllowSuspend;
-        storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag;
-        storeOffsetEnable = storeOffsetEnable
-                && this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE;
+        storeOffsetEnable = storeOffsetEnable && hasCommitOffsetFlag; // 表示客户端上报了消费位点
+        storeOffsetEnable = storeOffsetEnable && this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE;
         if (storeOffsetEnable) {
+            // 进行当前消费组的消费位点本地保存
             this.brokerController.getConsumerOffsetManager().commitOffset(RemotingHelper.parseChannelRemoteAddr(channel),
-                    requestHeader.getConsumerGroup(), requestHeader.getTopic(), requestHeader.getQueueId(), requestHeader.getCommitOffset());
+                    requestHeader.getConsumerGroup(),
+                    requestHeader.getTopic(),
+                    requestHeader.getQueueId(),
+                    requestHeader.getCommitOffset());
         }
 
         // 最后响应结果由 org.apache.rocketmq.remoting.netty.RemotingResponseCallback 处理响应返回给client

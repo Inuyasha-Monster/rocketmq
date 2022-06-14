@@ -129,6 +129,12 @@ public class ProcessQueue {
         }
     }
 
+    /**
+     * 拉取到消息投递到处理队列
+     *
+     * @param msgs
+     * @return
+     */
     public boolean putMessage(final List<MessageExt> msgs) {
         boolean dispatchToConsume = false;
         try {
@@ -139,6 +145,7 @@ public class ProcessQueue {
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
                     if (null == old) {
                         validMsgCnt++;
+                        // 设置处理队列的最大偏移量
                         this.queueOffsetMax = msg.getQueueOffset();
                         msgSize.addAndGet(msg.getBody().length);
                     }
@@ -147,6 +154,7 @@ public class ProcessQueue {
 
                 if (!msgTreeMap.isEmpty() && !this.consuming) {
                     dispatchToConsume = true;
+                    // 设置当前处理队列的消费中状态
                     this.consuming = true;
                 }
 
@@ -195,17 +203,19 @@ public class ProcessQueue {
             this.lastConsumeTimestamp = now;
             try {
                 if (!msgTreeMap.isEmpty()) {
+                    // 默认为最大
                     result = this.queueOffsetMax + 1;
                     int removedCnt = 0;
                     for (MessageExt msg : msgs) {
                         MessageExt prev = msgTreeMap.remove(msg.getQueueOffset());
                         if (prev != null) {
                             removedCnt--;
-                            msgSize.addAndGet(0 - msg.getBody().length);
+                            msgSize.addAndGet(-msg.getBody().length);
                         }
                     }
                     msgCount.addAndGet(removedCnt);
 
+                    // 如果treeMap不为空表示还有消息咩有消费，直接返回第一个元素的偏移量作为结果，因为treeMap天然有序
                     if (!msgTreeMap.isEmpty()) {
                         result = msgTreeMap.firstKey();
                     }
