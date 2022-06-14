@@ -77,7 +77,7 @@ public class ExpressionMessageFilter implements MessageFilter {
             if (subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)) {
                 return true;
             }
-
+            // 查看是否存在该hash值，hash冲突交给client去处理了
             return subscriptionData.getCodeSet().contains(tagsCode.intValue());
         } else {
             // no expression or no bloom
