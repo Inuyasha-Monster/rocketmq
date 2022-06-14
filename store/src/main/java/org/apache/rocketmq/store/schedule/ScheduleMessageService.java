@@ -127,6 +127,7 @@ public class ScheduleMessageService extends ConfigManager {
 
     public void start() {
         if (started.compareAndSet(false, true)) {
+            // 加载配置和初始化延时table
             super.load();
             this.deliverExecutorService = new ScheduledThreadPoolExecutor(this.maxDelayLevel, new ThreadFactoryImpl("ScheduleMessageTimerThread_"));
             if (this.enableAsyncDeliver) {
@@ -144,12 +145,13 @@ public class ScheduleMessageService extends ConfigManager {
                     if (this.enableAsyncDeliver) {
                         this.handleExecutorService.schedule(new HandlePutResultTask(level), FIRST_DELAY_TIME, TimeUnit.MILLISECONDS);
                     }
+                    // 每个延时等级创建一个延时任务
                     this.deliverExecutorService.schedule(new DeliverDelayedMessageTimerTask(level, offset), FIRST_DELAY_TIME, TimeUnit.MILLISECONDS);
                 }
             }
 
+            // 1s一次的将延时消息的offset进行本地持久化到文件存储
             this.deliverExecutorService.scheduleAtFixedRate(new Runnable() {
-
                 @Override
                 public void run() {
                     try {
@@ -351,6 +353,7 @@ public class ScheduleMessageService extends ConfigManager {
         public void run() {
             try {
                 if (isStarted()) {
+                    // 延时到期唤醒任务执行
                     this.executeOnTimeup();
                 }
             } catch (Exception e) {
@@ -376,6 +379,7 @@ public class ScheduleMessageService extends ConfigManager {
         }
 
         public void executeOnTimeup() {
+            // 找到对应的延时队列
             ConsumeQueue cq =
                 ScheduleMessageService.this.defaultMessageStore.findConsumeQueue(TopicValidator.RMQ_SYS_SCHEDULE_TOPIC,
                     delayLevel2QueueId(delayLevel));
@@ -385,6 +389,7 @@ public class ScheduleMessageService extends ConfigManager {
                 return;
             }
 
+            // 查询当前consumerQueue能读取的消息
             SelectMappedBufferResult bufferCQ = cq.getIndexBuffer(this.offset);
             if (bufferCQ == null) {
                 long resetOffset;
@@ -406,6 +411,7 @@ public class ScheduleMessageService extends ConfigManager {
             try {
                 int i = 0;
                 ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
+                // 按照20个字节的方式一个消息一个消息的读取
                 for (; i < bufferCQ.getSize() && isStarted(); i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
                     long offsetPy = bufferCQ.getByteBuffer().getLong();
                     int sizePy = bufferCQ.getByteBuffer().getInt();
@@ -425,14 +431,17 @@ public class ScheduleMessageService extends ConfigManager {
 
                     long now = System.currentTimeMillis();
                     long deliverTimestamp = this.correctDeliverTimestamp(now, tagsCode);
+                    // 计算下一次调度的偏移量
                     nextOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
 
                     long countdown = deliverTimestamp - now;
+                    // 说明当前这个消息还没到时间
                     if (countdown > 0) {
                         this.scheduleNextTimerTask(nextOffset, DELAY_FOR_A_WHILE);
                         return;
                     }
 
+                    // 到时间了把消息拿出来
                     MessageExt msgExt = ScheduleMessageService.this.defaultMessageStore.lookMessageByOffset(offsetPy, sizePy);
                     if (msgExt == null) {
                         continue;
@@ -446,6 +455,7 @@ public class ScheduleMessageService extends ConfigManager {
                     }
 
                     boolean deliverSuc;
+                    // 是否是否异步投递进行消息的putMessage
                     if (ScheduleMessageService.this.enableAsyncDeliver) {
                         deliverSuc = this.asyncDeliver(msgInner, msgExt.getMsgId(), offset, offsetPy, sizePy);
                     } else {
@@ -476,9 +486,11 @@ public class ScheduleMessageService extends ConfigManager {
         private boolean syncDeliver(MessageExtBrokerInner msgInner, String msgId, long offset, long offsetPy,
             int sizePy) {
             PutResultProcess resultProcess = deliverMessage(msgInner, msgId, offset, offsetPy, sizePy, false);
+            // 阻塞获取消息投递结果
             PutMessageResult result = resultProcess.get();
             boolean sendStatus = result != null && result.getPutMessageStatus() == PutMessageStatus.PUT_OK;
             if (sendStatus) {
+                // 投递成功更新对应的延时队列的偏移量
                 ScheduleMessageService.this.updateOffset(this.delayLevel, resultProcess.getNextOffset());
             }
             return sendStatus;
@@ -492,6 +504,7 @@ public class ScheduleMessageService extends ConfigManager {
             int currentPendingNum = processesQueue.size();
             int maxPendingLimit = ScheduleMessageService.this.defaultMessageStore.getMessageStoreConfig()
                 .getScheduleAsyncDeliverMaxPendingLimit();
+            // 阻塞队列如果大于2000触发限流
             if (currentPendingNum > maxPendingLimit) {
                 log.warn("Asynchronous deliver triggers flow control, " +
                     "currentPendingNum={}, maxPendingLimit={}", currentPendingNum, maxPendingLimit);
