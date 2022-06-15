@@ -337,6 +337,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                             localTransactionState = transactionCheckListener.checkLocalTransactionState(message);
                         } else if (transactionListener != null) {
                             log.debug("Used new check API in transaction message");
+                            // 触发本地回查逻辑
                             localTransactionState = transactionListener.checkLocalTransaction(message);
                         } else {
                             log.warn("CheckTransactionState, pick transactionListener by group[{}] failed", group);
@@ -346,6 +347,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         exception = e;
                     }
 
+                    // 上报回查结果给broker
                     this.processTransactionState(
                             localTransactionState,
                             group,

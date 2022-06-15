@@ -123,6 +123,15 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
         }
     }
 
+    /**
+     * 逻辑梳理参考：https://www.cnblogs.com/enoc/p/rocketmq-so-no-nana.html
+     *
+     * @param transactionTimeout  The minimum time of the transactional message to be checked firstly, one message only
+     *                            exceed this time interval that can be checked.
+     * @param transactionCheckMax The maximum number of times the message was checked, if exceed this value, this
+     *                            message will be discarded.
+     * @param listener            When the message is considered to be checked or discarded, the relative method of this class will
+     */
     @Override
     public void check(long transactionTimeout,
                       int transactionCheckMax,
@@ -171,11 +180,13 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                         log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
                         break;
                     }
+                    /* 如果该 half 消息存在对应的 op 消息，说明已经被处理了(commit/rollback) */
                     if (removeMap.containsKey(i)) {
                         log.debug("Half offset {} has been committed/rolled back", i);
                         Long removedOpOffset = removeMap.remove(i);
                         doneOpOffset.add(removedOpOffset);
                     } else {
+                        /* 否则说明当前 half 消息悬而未决  */
                         GetResult getResult = getHalfMsg(messageQueue, i);
                         MessageExt msgExt = getResult.getMsg();
                         if (msgExt == null) {
@@ -195,8 +206,16 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                             }
                         }
 
+                        /*
+                         * 检测是否要丢弃或跳过
+                         *   丢弃条件: 当前事务已经超过了最大回查次数(15次)
+                         *   跳过条件: 已经超过了过期文件最大保留时间(72小时)
+                         */
                         if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) {
+                            // 处理并推进偏移量
+                            // 具体的处理方法是: 投入 TRANS_CHECK_MAX_TIME_TOPIC 这个 Topic，等待手动处理
                             listener.resolveDiscardMsg(msgExt);
+                            // 进入到下一个 half 消息
                             newOffset = i + 1;
                             i++;
                             continue;
@@ -207,6 +226,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                             break;
                         }
 
+                        // half 消息具有最小的检查时间(免疫时间), 检测时间以内可以跳过回查, 重新投入 half 消息的 Topic
                         long valueOfCurrentMinusBorn = System.currentTimeMillis() - msgExt.getBornTimestamp();
                         long checkImmunityTime = transactionTimeout;
                         String checkImmunityTimeStr = msgExt.getUserProperty(MessageConst.PROPERTY_CHECK_IMMUNITY_TIME_IN_SECONDS);
@@ -226,31 +246,45 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                                 break;
                             }
                         }
+                        /*
+                         * 对于当前事务的回查操作，需要满足三个条件之一
+                         *  1.当前 op 消息的集合为空，且已经超过了最小检查时间(免疫时间)
+                         *  2.最大偏移量的 op 消息的生成时间 已经超过了 最小检查时间
+                         *  3.关闭最小检查时间
+                         */
                         List<MessageExt> opMsg = pullResult.getMsgFoundList();
                         boolean isNeedCheck = (opMsg == null && valueOfCurrentMinusBorn > checkImmunityTime)
                                 || (opMsg != null && (opMsg.get(opMsg.size() - 1).getBornTimestamp() - startTime > transactionTimeout))
                                 || (valueOfCurrentMinusBorn <= -1);
 
                         if (isNeedCheck) {
+                            // 先将当前 half 消息放回
                             if (!putBackHalfMsgQueue(msgExt, i)) {
                                 continue;
                             }
+                            // 然后向 producer 发送检测消息触发回查
                             listener.resolveHalfMsg(msgExt);
                         } else {
+                            // 否则更新 op 消息集合,以确保能够断言该 half 消息的状态
                             pullResult = fillOpRemoveMap(removeMap, opQueue, pullResult.getNextBeginOffset(), halfOffset, doneOpOffset);
                             log.debug("The miss offset:{} in messageQueue:{} need to get more opMsg, result is:{}", i,
                                     messageQueue, pullResult);
                             continue;
                         }
                     }
+                    // 继续下一个消息
                     newOffset = i + 1;
                     i++;
                 }
+                // 对所有的 half 消息计算完成后，更新偏移量
                 if (newOffset != halfOffset) {
                     transactionalMessageBridge.updateConsumeOffset(messageQueue, newOffset);
                 }
+                // 根据已经被标记为完成的 op 消息更新偏移量
                 long newOpOffset = calculateOpOffset(doneOpOffset, opOffset);
                 if (newOpOffset != opOffset) {
+                    // 如果不等，说明并不是所有的 op 消息都被标记为完成了
+                    // 所以我们只将偏移量更新到第一个未完成的 op 消息的位置，其后面的 op 消息会在下次重复处理
                     transactionalMessageBridge.updateConsumeOffset(opQueue, newOpOffset);
                 }
             }
@@ -308,13 +342,16 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             return pullResult;
         }
         for (MessageExt opMessageExt : opMsg) {
+            // opMessage 的【body】内容是 half消息的偏移量
             Long queueOffset = getLong(new String(opMessageExt.getBody(), TransactionalMessageUtil.charset));
             log.debug("Topic: {} tags: {}, OpOffset: {}, HalfOffset: {}", opMessageExt.getTopic(),
                     opMessageExt.getTags(), opMessageExt.getQueueOffset(), queueOffset);
             if (TransactionalMessageUtil.REMOVETAG.equals(opMessageExt.getTags())) {
+                // 在 已处理偏移量 之前的话则可直接放入 已处理偏移量集合
                 if (queueOffset < miniOffset) {
                     doneOpOffset.add(opMessageExt.getQueueOffset());
                 } else {
+                    // 否则放入需要移除的 half 的消息的集合
                     removeMap.put(queueOffset, opMessageExt.getQueueOffset());
                 }
             } else {

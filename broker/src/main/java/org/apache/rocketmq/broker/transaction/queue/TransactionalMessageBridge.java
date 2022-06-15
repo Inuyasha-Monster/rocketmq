@@ -216,7 +216,8 @@ public class TransactionalMessageBridge {
 
     public boolean putOpMessage(MessageExt messageExt, String opType) {
         MessageQueue messageQueue = new MessageQueue(messageExt.getTopic(),
-                this.brokerController.getBrokerConfig().getBrokerName(), messageExt.getQueueId());
+                this.brokerController.getBrokerConfig().getBrokerName(),
+                messageExt.getQueueId());
         if (TransactionalMessageUtil.REMOVETAG.equals(opType)) {
             return addRemoveTagInTransactionOp(messageExt, messageQueue);
         }
