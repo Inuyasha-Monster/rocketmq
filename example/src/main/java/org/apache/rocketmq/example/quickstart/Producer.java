@@ -63,6 +63,8 @@ public class Producer {
                         ("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
                 );
 
+                msg.setKeys("12312312313123");
+
                 /*
                  * Call send message to deliver message to one of brokers.
                  */

@@ -132,6 +132,7 @@ public class Message implements Serializable {
         StringBuilder sb = new StringBuilder();
         for (String k : keys) {
             sb.append(k);
+            // 通过空格分割
             sb.append(MessageConst.KEY_SEPARATOR);
         }
 

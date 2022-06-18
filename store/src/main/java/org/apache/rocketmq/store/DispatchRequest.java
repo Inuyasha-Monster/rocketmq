@@ -26,6 +26,9 @@ public class DispatchRequest {
     private final long tagsCode;
     private final long storeTimestamp;
     private final long consumeQueueOffset;
+    /**
+     * producer发送消息中的keys
+     */
     private final String keys;
     private final boolean success;
     private final String uniqKey;

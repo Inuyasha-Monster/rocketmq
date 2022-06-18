@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -51,7 +52,7 @@ public class IndexService {
         this.hashSlotNum = store.getMessageStoreConfig().getMaxHashSlotNum();
         this.indexNum = store.getMessageStoreConfig().getMaxIndexNum();
         this.storePath =
-            StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());
+                StorePathConfigHelper.getStorePathIndex(store.getMessageStoreConfig().getStorePathRootDir());
     }
 
     public boolean load(final boolean lastExitOK) {
@@ -67,7 +68,7 @@ public class IndexService {
 
                     if (!lastExitOK) {
                         if (f.getEndTimestamp() > this.defaultMessageStore.getStoreCheckpoint()
-                            .getIndexMsgTimestamp()) {
+                                .getIndexMsgTimestamp()) {
                             f.destroy(0);
                             continue;
                         }
@@ -219,6 +220,7 @@ public class IndexService {
                     return;
             }
 
+            // 如果唯一键不为空则也追加构建它对应的索引数据
             if (req.getUniqKey() != null) {
                 indexFile = putKey(indexFile, msg, buildKey(topic, req.getUniqKey()));
                 if (indexFile == null) {
@@ -228,10 +230,12 @@ public class IndexService {
             }
 
             if (keys != null && keys.length() > 0) {
+                // 可以是多个key
                 String[] keyset = keys.split(MessageConst.KEY_SEPARATOR);
                 for (int i = 0; i < keyset.length; i++) {
                     String key = keyset[i];
                     if (key.length() > 0) {
+                        // 追加到indexFile文件中构建索引
                         indexFile = putKey(indexFile, msg, buildKey(topic, key));
                         if (indexFile == null) {
                             log.error("putKey error commitlog {} uniqkey {}", req.getCommitLogOffset(), req.getUniqKey());
@@ -245,6 +249,14 @@ public class IndexService {
         }
     }
 
+    /**
+     * 追加索引
+     *
+     * @param indexFile
+     * @param msg
+     * @param idxKey    {topic}#{key}
+     * @return
+     */
     private IndexFile putKey(IndexFile indexFile, DispatchRequest msg, String idxKey) {
         for (boolean ok = indexFile.putKey(idxKey, msg.getCommitLogOffset(), msg.getStoreTimestamp()); !ok; ) {
             log.warn("Index file [" + indexFile.getFileName() + "] is full, trying to create another one");
@@ -311,14 +323,18 @@ public class IndexService {
             this.readWriteLock.readLock().unlock();
         }
 
+        // 如果没有找到则创建一个indexFile加入到list集合
         if (indexFile == null) {
             try {
                 String fileName =
-                    this.storePath + File.separator
-                        + UtilAll.timeMillisToHumanString(System.currentTimeMillis());
+                        this.storePath + File.separator
+                                + UtilAll.timeMillisToHumanString(System.currentTimeMillis());
                 indexFile =
-                    new IndexFile(fileName, this.hashSlotNum, this.indexNum, lastUpdateEndPhyOffset,
-                        lastUpdateIndexTimestamp);
+                        new IndexFile(fileName,
+                                this.hashSlotNum,
+                                this.indexNum,
+                                lastUpdateEndPhyOffset,
+                                lastUpdateIndexTimestamp);
                 this.readWriteLock.writeLock().lock();
                 this.indexFileList.add(indexFile);
             } catch (Exception e) {
