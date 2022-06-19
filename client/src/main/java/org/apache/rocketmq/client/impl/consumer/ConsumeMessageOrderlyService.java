@@ -521,7 +521,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                     break;
                                 }
 
-                                // 业务逻辑消费
+                                // TODO: 2022/6/19  业务逻辑消费
                                 status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
                             } catch (Throwable e) {
                                 log.warn(String.format("consumeMessage exception: %s Group: %s Msgs: %s MQ: %s",
