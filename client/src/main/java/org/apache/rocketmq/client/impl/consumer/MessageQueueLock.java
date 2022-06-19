@@ -18,6 +18,7 @@ package org.apache.rocketmq.client.impl.consumer;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
 import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
@@ -25,7 +26,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
  */
 public class MessageQueueLock {
     private ConcurrentMap<MessageQueue, Object> mqLockTable =
-        new ConcurrentHashMap<MessageQueue, Object>();
+            new ConcurrentHashMap<MessageQueue, Object>();
 
     public Object fetchLockObject(final MessageQueue mq) {
         Object objLock = this.mqLockTable.get(mq);

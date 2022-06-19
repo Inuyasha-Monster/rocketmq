@@ -1151,6 +1151,7 @@ public class MQClientAPIImpl {
             final String addr,
             final LockBatchRequestBody requestBody,
             final long timeoutMillis) throws RemotingException, MQBrokerException, InterruptedException {
+
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.LOCK_BATCH_MQ, null);
 
         request.setBody(requestBody.encode());

@@ -243,6 +243,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
      * In orderly mode, -1 means Integer.MAX_VALUE.
      * <p>
      * If messages are re-consumed more than {@link #maxReconsumeTimes} before success.
+     * 上述逻辑怎么体现的？broker端体现的？ // TODO: 2022/6/19
      */
     private int maxReconsumeTimes = -1;
 

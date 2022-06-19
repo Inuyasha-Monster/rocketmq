@@ -47,7 +47,7 @@ public class ProcessQueue {
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
     private final InternalLogger log = ClientLogger.getLog();
     private final ReadWriteLock treeMapLock = new ReentrantReadWriteLock();
-    private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
+    private final TreeMap<Long /*consumerQueue的逻辑偏移量*/, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
     private final AtomicLong msgCount = new AtomicLong();
     private final AtomicLong msgSize = new AtomicLong();
     private final Lock consumeLock = new ReentrantLock();
@@ -142,6 +142,7 @@ public class ProcessQueue {
             try {
                 int validMsgCnt = 0;
                 for (MessageExt msg : msgs) {
+                    // 添加到有序map中
                     MessageExt old = msgTreeMap.put(msg.getQueueOffset(), msg);
                     if (null == old) {
                         validMsgCnt++;
@@ -276,6 +277,7 @@ public class ProcessQueue {
         try {
             this.treeMapLock.writeLock().lockInterruptibly();
             try {
+                // 当前消费的最大偏移量
                 Long offset = this.consumingMsgOrderlyTreeMap.lastKey();
                 msgCount.addAndGet(0 - this.consumingMsgOrderlyTreeMap.size());
                 for (MessageExt msg : this.consumingMsgOrderlyTreeMap.values()) {
@@ -283,6 +285,7 @@ public class ProcessQueue {
                 }
                 this.consumingMsgOrderlyTreeMap.clear();
                 if (offset != null) {
+                    // 返回下一次消费的偏移量
                     return offset + 1;
                 }
             } finally {
@@ -323,6 +326,8 @@ public class ProcessQueue {
                         Map.Entry<Long, MessageExt> entry = this.msgTreeMap.pollFirstEntry();
                         if (entry != null) {
                             result.add(entry.getValue());
+                            // 顺序消息消费时，从ProceessQueue中取出的消息，
+                            // 会临时存储在ProceeQueue的consumingMsgOrderlyTreeMap属性中
                             consumingMsgOrderlyTreeMap.put(entry.getKey(), entry.getValue());
                         } else {
                             break;
@@ -331,6 +336,7 @@ public class ProcessQueue {
                 }
 
                 if (result.isEmpty()) {
+                    // 如果没有取到消息，设置：没有消费中
                     consuming = false;
                 }
             } finally {
