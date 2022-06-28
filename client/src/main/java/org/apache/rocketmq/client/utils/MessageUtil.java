@@ -36,6 +36,7 @@ public class MessageUtil {
             if (cluster != null) {
                 String replyTopic = MixAll.getReplyTopic(cluster);
                 replyMessage.setTopic(replyTopic);
+                // 关键：设置消息类型为【回复】类型
                 MessageAccessor.putProperty(replyMessage, MessageConst.PROPERTY_MESSAGE_TYPE, MixAll.REPLY_MESSAGE_FLAG);
                 MessageAccessor.putProperty(replyMessage, MessageConst.PROPERTY_CORRELATION_ID, correlationId);
                 MessageAccessor.putProperty(replyMessage, MessageConst.PROPERTY_MESSAGE_REPLY_TO_CLIENT, replyTo);

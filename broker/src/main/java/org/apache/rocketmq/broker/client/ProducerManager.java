@@ -17,12 +17,14 @@
 package org.apache.rocketmq.broker.client;
 
 import io.netty.channel.Channel;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.rocketmq.broker.util.PositiveAtomicCounter;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -34,10 +36,9 @@ public class ProducerManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.BROKER_LOGGER_NAME);
     private static final long CHANNEL_EXPIRED_TIMEOUT = 1000 * 120;
     private static final int GET_AVAILABLE_CHANNEL_RETRY_COUNT = 3;
-    private final ConcurrentHashMap<String /* group name */, ConcurrentHashMap<Channel, ClientChannelInfo>> groupChannelTable =
-        new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Channel> clientChannelTable = new ConcurrentHashMap<>();
-    private PositiveAtomicCounter positiveAtomicCounter = new PositiveAtomicCounter();
+    private final ConcurrentHashMap<String /* group name */, ConcurrentHashMap<Channel, ClientChannelInfo>> groupChannelTable = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String /* clientId */, Channel> clientChannelTable = new ConcurrentHashMap<>();
+    private final PositiveAtomicCounter positiveAtomicCounter = new PositiveAtomicCounter();
 
     public ProducerManager() {
     }

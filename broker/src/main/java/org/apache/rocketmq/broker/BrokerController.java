@@ -150,7 +150,14 @@ public class BrokerController {
     private final List<SendMessageHook> sendMessageHookList = new ArrayList<SendMessageHook>();
     private final List<ConsumeMessageHook> consumeMessageHookList = new ArrayList<ConsumeMessageHook>();
     private MessageStore messageStore;
+    /**
+     * 可以处理所有client请求的netty服务端；
+     * 客户端：默认情况下，生产者发送消息是请求fastRemotingServer，我们也可以通过配置让其请求remotingServer；消费者拉取消息只能请求remotingServer。
+     */
     private RemotingServer remotingServer;
+    /**
+     * 功能基本与remotingServer相同，唯一不同的是不可以处理消费者拉取消息的请求
+     */
     private RemotingServer fastRemotingServer;
     private TopicConfigManager topicConfigManager;
     private ExecutorService sendMessageExecutor;

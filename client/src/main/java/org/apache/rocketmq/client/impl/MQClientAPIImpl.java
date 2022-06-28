@@ -468,6 +468,7 @@ public class MQClientAPIImpl {
         boolean isReply = msgType != null && msgType.equals(MixAll.REPLY_MESSAGE_FLAG);
         // 是否请求响应模式
         if (isReply) {
+            // 回复消息请求情况，设置对应的 RequestCode 方便broker针对性处理
             if (sendSmartMsg) {
                 SendMessageRequestHeaderV2 requestHeaderV2 = SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
                 request = RemotingCommand.createRequestCommand(RequestCode.SEND_REPLY_MESSAGE_V2, requestHeaderV2);
