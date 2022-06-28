@@ -46,6 +46,9 @@ public class RequestFutureHolder {
         return requestFutureTable;
     }
 
+    /**
+     * 处理请求超时的future
+     */
     private void scanExpiredRequest() {
         final List<RequestResponseFuture> rfList = new LinkedList<RequestResponseFuture>();
         Iterator<Map.Entry<String, RequestResponseFuture>> it = requestFutureTable.entrySet().iterator();
@@ -99,7 +102,8 @@ public class RequestFutureHolder {
         }
     }
 
-    private RequestFutureHolder() {}
+    private RequestFutureHolder() {
+    }
 
     public static RequestFutureHolder getInstance() {
         return INSTANCE;

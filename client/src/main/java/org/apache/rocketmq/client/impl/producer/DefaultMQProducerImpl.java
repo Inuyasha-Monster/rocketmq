@@ -1399,13 +1399,17 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                            long timeout) throws RequestTimeoutException, MQClientException, RemotingException, MQBrokerException, InterruptedException {
         long beginTimestamp = System.currentTimeMillis();
         prepareSendRequest(msg, timeout);
+        // 请求的唯一ID，uuid
         final String correlationId = msg.getProperty(MessageConst.PROPERTY_CORRELATION_ID);
 
         try {
+            // 构建一个请求响应的future
             final RequestResponseFuture requestResponseFuture = new RequestResponseFuture(correlationId, timeout, null);
+            // 将future缓存到map中，key = uuid ，value = future
             RequestFutureHolder.getInstance().getRequestFutureTable().put(correlationId, requestResponseFuture);
 
             long cost = System.currentTimeMillis() - beginTimestamp;
+            // 使用公共方法调用发送消息，以及采用async模式
             this.sendDefaultImpl(msg, CommunicationMode.ASYNC, new SendCallback() {
                 @Override
                 public void onSuccess(SendResult sendResult) {
@@ -1420,6 +1424,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 }
             }, timeout - cost);
 
+            // 阻塞超时获取请求结果（实际上broker推送的消息）
             return waitResponse(msg, timeout, requestResponseFuture, cost);
         } finally {
             RequestFutureHolder.getInstance().getRequestFutureTable().remove(correlationId);
@@ -1593,6 +1598,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     private void prepareSendRequest(final Message msg, long timeout) {
         String correlationId = CorrelationIdUtil.createCorrelationId();
         String requestClientId = this.getmQClientFactory().getClientId();
+        // uuid
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_CORRELATION_ID, correlationId);
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MESSAGE_REPLY_TO_CLIENT, requestClientId);
         MessageAccessor.putProperty(msg, MessageConst.PROPERTY_MESSAGE_TTL, String.valueOf(timeout));
