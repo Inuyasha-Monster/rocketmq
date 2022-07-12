@@ -671,6 +671,7 @@ public class CommitLog {
             // 选择最新的一个mapFile来保存数据
             MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
             long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
+            // 设置开始锁定开始时间
             this.beginTimeInLock = beginLockTimestamp;
 
             // Here settings are stored timestamp, in order to ensure an orderly global
@@ -713,6 +714,7 @@ public class CommitLog {
 
             elapsedTimeInLock = this.defaultMessageStore.getSystemClock().now() - beginLockTimestamp;
         } finally {
+            // 锁定操作完成重置锁定开始时间
             beginTimeInLock = 0;
             // 解除锁定
             putMessageLock.unlock();
@@ -748,6 +750,12 @@ public class CommitLog {
         });
     }
 
+    /**
+     * 批量消息写入逻辑
+     *
+     * @param messageExtBatch
+     * @return
+     */
     public CompletableFuture<PutMessageResult> asyncPutMessages(final MessageExtBatch messageExtBatch) {
         messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
         AppendMessageResult result;

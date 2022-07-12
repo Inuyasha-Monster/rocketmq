@@ -65,15 +65,18 @@ public class BrokerFastFailure {
     }
 
     private void cleanExpiredRequest() {
+        // pageCache繁忙则将消息发送队列请求取出来设置错误，快速返回结果，直到pageCache不繁忙为止
         while (this.brokerController.getMessageStore().isOSPageCacheBusy()) {
             try {
                 if (!this.brokerController.getSendThreadPoolQueue().isEmpty()) {
                     final Runnable runnable = this.brokerController.getSendThreadPoolQueue().poll(0, TimeUnit.SECONDS);
+                    // 为空直接返回循环
                     if (null == runnable) {
                         break;
                     }
 
                     final RequestTask rt = castRunnable(runnable);
+                    // 设置繁忙结果回包给客户端
                     rt.returnResponse(RemotingSysResponseCode.SYSTEM_BUSY, String.format("[PCBUSY_CLEAN_QUEUE]broker busy, start flow control for a while, period in queue: %sms, size of queue: %d", System.currentTimeMillis() - rt.getCreateTimestamp(), this.brokerController.getSendThreadPoolQueue().size()));
                 } else {
                     break;
@@ -82,15 +85,19 @@ public class BrokerFastFailure {
             }
         }
 
+        // 迭代发送消息请求队列找出超过200ms的请求快速错误返回
         cleanExpiredRequestInQueue(this.brokerController.getSendThreadPoolQueue(),
                 this.brokerController.getBrokerConfig().getWaitTimeMillsInSendQueue());
 
+        // 迭代拉取消息请求队列找出超过5000ms的请求快速错误返回
         cleanExpiredRequestInQueue(this.brokerController.getPullThreadPoolQueue(),
                 this.brokerController.getBrokerConfig().getWaitTimeMillsInPullQueue());
 
+        // 同理处理心跳请求
         cleanExpiredRequestInQueue(this.brokerController.getHeartbeatThreadPoolQueue(),
                 this.brokerController.getBrokerConfig().getWaitTimeMillsInHeartbeatQueue());
 
+        // 同理处理事务请求
         cleanExpiredRequestInQueue(this.brokerController.getEndTransactionThreadPoolQueue(), this
                 .brokerController.getBrokerConfig().getWaitTimeMillsInTransactionQueue());
     }
