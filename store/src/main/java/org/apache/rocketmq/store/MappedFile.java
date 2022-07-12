@@ -288,6 +288,7 @@ public class MappedFile extends ReferenceResource {
     }
 
     /**
+     * @param flushLeastPages 至少刷新的page页面数量
      * @return The current flushed position
      */
     public int flush(final int flushLeastPages) {
@@ -305,7 +306,7 @@ public class MappedFile extends ReferenceResource {
                 } catch (Throwable e) {
                     log.error("Error occurred when force data to disk.", e);
                 }
-
+                // 刷新完成后设置刷新指针对应的问题
                 this.flushedPosition.set(value);
                 this.release();
             } else {
@@ -331,6 +332,7 @@ public class MappedFile extends ReferenceResource {
         }
 
         // All dirty data has been committed to FileChannel.
+        // 如果提交指针达到文件末尾的时候，归还直接内存到瞬态内存池
         if (writeBuffer != null && this.transientStorePool != null && this.fileSize == this.committedPosition.get()) {
             this.transientStorePool.returnBuffer(writeBuffer);
             this.writeBuffer = null;
@@ -343,14 +345,16 @@ public class MappedFile extends ReferenceResource {
         int writePos = this.wrotePosition.get();
         int lastCommittedPosition = this.committedPosition.get();
 
-        // 如果还有剩余需要提交的数据范围
+        // 如果还有剩余需要提交的数据范围：写入为止大于提交位置，就表示还有数据还没刷到系统文件缓存
         if (writePos - lastCommittedPosition > 0) {
             try {
                 ByteBuffer byteBuffer = writeBuffer.slice();
                 byteBuffer.position(lastCommittedPosition);
                 byteBuffer.limit(writePos);
+                // 设置文件偏移量
                 this.fileChannel.position(lastCommittedPosition);
                 this.fileChannel.write(byteBuffer);
+                // 移动提交指针到写入位置
                 this.committedPosition.set(writePos);
             } catch (Throwable e) {
                 log.error("Error occurred when commit data to FileChannel.", e);
