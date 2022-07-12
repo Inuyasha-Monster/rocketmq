@@ -241,10 +241,12 @@ public abstract class NettyRemotingAbstract {
                 }
             };
 
+            // 判断当前processor是否拒绝当前请求
             if (pair.getObject1().rejectRequest()) {
                 final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
                         "[REJECTREQUEST]system busy, start flow control for a while");
                 response.setOpaque(opaque);
+                // 回包系统繁忙的错误回复给client
                 ctx.writeAndFlush(response);
                 return;
             }
@@ -261,6 +263,7 @@ public abstract class NettyRemotingAbstract {
                             + " request code: " + cmd.getCode());
                 }
 
+                // 如果不是单向请求则直接返回系统繁忙错误回复
                 if (!cmd.isOnewayRPC()) {
                     final RemotingCommand response = RemotingCommand.createResponseCommand(RemotingSysResponseCode.SYSTEM_BUSY,
                             "[OVERLOAD]system busy, start flow control for a while");

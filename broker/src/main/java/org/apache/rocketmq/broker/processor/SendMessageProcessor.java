@@ -111,6 +111,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
     @Override
     public boolean rejectRequest() {
+        // 针对client消息写入的场景，如果pageCache繁忙或者无可用瞬态缓冲池则拒绝请求
         return this.brokerController.getMessageStore().isOSPageCacheBusy() ||
                 this.brokerController.getMessageStore().isTransientStorePoolDeficient();
     }

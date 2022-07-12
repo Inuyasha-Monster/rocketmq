@@ -1629,6 +1629,7 @@ public class DefaultMessageStore implements MessageStore {
 
     @Override
     public boolean isTransientStorePoolDeficient() {
+        // 剩余瞬态存储buffer数量为0的时候，认为是匮乏的
         return remainTransientStoreBufferNumbs() == 0;
     }
 
