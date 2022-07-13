@@ -47,6 +47,7 @@ public class StoreCheckpoint {
 
         if (fileExists) {
             log.info("store checkpoint file exists, " + scpPath);
+            // 依次存储的是：物理消息时间、逻辑消息时间、索引消息时间
             this.physicMsgTimestamp = this.mappedByteBuffer.getLong(0);
             this.logicsMsgTimestamp = this.mappedByteBuffer.getLong(8);
             this.indexMsgTimestamp = this.mappedByteBuffer.getLong(16);
