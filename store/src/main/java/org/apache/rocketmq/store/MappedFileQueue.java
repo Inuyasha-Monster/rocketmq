@@ -441,6 +441,7 @@ public class MappedFileQueue {
         return deleteCount;
     }
 
+    // 提供给同步和异步的刷盘线程调用
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
         // 根据上次刷盘的位置定位到一个文件
@@ -461,10 +462,12 @@ public class MappedFileQueue {
         return result;
     }
 
+    // 提供给瞬态内存池模式 CommitRealTimeService 使用
     public boolean commit(final int commitLeastPages) {
         boolean result = true;
         MappedFile mappedFile = this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);
         if (mappedFile != null) {
+            // 关键差别：内部判断，然后是将直接内存buffer写入到fileChannel中
             int offset = mappedFile.commit(commitLeastPages);
             long where = mappedFile.getFileFromOffset() + offset;
             result = where == this.committedWhere;

@@ -62,7 +62,7 @@ public class CommitLog {
     protected final MappedFileQueue mappedFileQueue;
     protected final DefaultMessageStore defaultMessageStore;
 
-    // 如果是「同步刷盘」则赋值为：GroupCommitService，否则 FlushRealTimeService
+    // 如果是「同步刷盘」则赋值为：GroupCommitService，否则异步情况为： FlushRealTimeService
     private final FlushCommitLogService flushCommitLogService;
 
     //If TransientStorePool enabled, we must flush message to FileChannel at fixed periods
@@ -1070,9 +1070,11 @@ public class CommitLog {
                     // 实际通过writerBuffer倒腾到fileChannel中进行focre刷盘
                     boolean result = CommitLog.this.mappedFileQueue.commit(commitDataLeastPages);
                     long end = System.currentTimeMillis();
+                    // result=false表示有数据已经提交到fileChannel中了，所以接着就唤醒异步的刷盘线程进行刷盘
                     if (!result) {
                         this.lastCommitTimestamp = end; // result = false means some data committed.
                         //now wake up flush thread.
+                        // 唤醒刷盘线程执行刷盘
                         flushCommitLogService.wakeup();
                     }
 
@@ -1144,10 +1146,11 @@ public class CommitLog {
                     }
 
                     long begin = System.currentTimeMillis();
-                    // flushPhysicQueueLeastPages = 0 表示直接刷盘
+                    // TODO: 2022/7/13 关键 flushPhysicQueueLeastPages = 0 表示直接刷盘
                     CommitLog.this.mappedFileQueue.flush(flushPhysicQueueLeastPages);
                     long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
                     if (storeTimestamp > 0) {
+                        // 会写checkPoint的物理存储时间
                         CommitLog.this.defaultMessageStore.getStoreCheckpoint().setPhysicMsgTimestamp(storeTimestamp);
                     }
                     long past = System.currentTimeMillis() - begin;
@@ -1161,6 +1164,7 @@ public class CommitLog {
             }
 
             // Normal shutdown, to ensure that all the flush before exit
+            // 正常关闭保证所有page的数据落盘
             boolean result = false;
             for (int i = 0; i < RETRY_TIMES_OVER && !result; i++) {
                 result = CommitLog.this.mappedFileQueue.flush(0);
