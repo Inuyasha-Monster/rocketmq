@@ -147,6 +147,7 @@ public class MappedFile extends ReferenceResource {
     public void init(final String fileName, final int fileSize,
                      final TransientStorePool transientStorePool) throws IOException {
         init(fileName, fileSize);
+        // 瞬态内存池不够的情况，返回null
         this.writeBuffer = transientStorePool.borrowBuffer();
         this.transientStorePool = transientStorePool;
     }

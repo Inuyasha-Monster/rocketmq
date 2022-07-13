@@ -99,12 +99,14 @@ public class AllocateMappedFileService extends ServiceThread {
         AllocateRequest result = this.requestTable.get(nextFilePath);
         try {
             if (result != null) {
+                // 阻塞等待 mappedFile 创建完成，超时时间5s
                 boolean waitOK = result.getCountDownLatch().await(waitTimeOut, TimeUnit.MILLISECONDS);
                 if (!waitOK) {
                     log.warn("create mmap timeout " + result.getFilePath() + " " + result.getFileSize());
                     return null;
                 } else {
                     this.requestTable.remove(nextFilePath);
+                    // 创建完成返回映射文件
                     return result.getMappedFile();
                 }
             } else {
@@ -136,6 +138,7 @@ public class AllocateMappedFileService extends ServiceThread {
     public void run() {
         log.info(this.getServiceName() + " service started");
 
+        // 循环不断的创建mappedFile
         while (!this.isStopped() && this.mmapOperation()) {
 
         }
@@ -149,8 +152,9 @@ public class AllocateMappedFileService extends ServiceThread {
         boolean isSuccess = false;
         AllocateRequest req = null;
         try {
-            // 阻塞等待获取创建file的请求
+            // 阻塞等待获取创建mappedFile的请求，且是获取的优先级最高的
             req = this.requestQueue.take();
+            //
             AllocateRequest expectedRequest = this.requestTable.get(req.getFilePath());
             if (null == expectedRequest) {
                 log.warn("this mmap request expired, maybe cause timeout " + req.getFilePath() + " "
@@ -206,6 +210,7 @@ public class AllocateMappedFileService extends ServiceThread {
         } catch (InterruptedException e) {
             log.warn(this.getServiceName() + " interrupted, possibly by shutdown.");
             this.hasException = true;
+            // 只有中断线程的情况下才返回false
             return false;
         } catch (IOException e) {
             log.warn(this.getServiceName() + " service has exception. ", e);
@@ -219,6 +224,7 @@ public class AllocateMappedFileService extends ServiceThread {
             }
         } finally {
             if (req != null && isSuccess)
+                // 创建成功的情况，取消阻塞的线程
                 req.getCountDownLatch().countDown();
         }
         return true;
