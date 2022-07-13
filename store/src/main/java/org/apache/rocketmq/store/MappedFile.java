@@ -215,7 +215,7 @@ public class MappedFile extends ReferenceResource {
             /**
              * 1、仅仅是开启堆外缓冲池 + 异步刷盘 + 主节点 的时候 writeBuffer 才会从堆外缓冲池中获取
              * 2、writeBuffer/mappedByteBuffer 的position始终为0，limit始终等于capacity
-             * 3、xxx.slice() 是根据原始buffer的 position和limit来创建的，所以需要重新设置position偏移量，且跟原始buffer的position和limit互补影响
+             * 3、xxx.slice() 是根据原始buffer的 position和limit来创建的，所以需要重新设置position偏移量，且跟原始buffer的position和limit互不影响
              */
 
             // 判断是否是使用直接内存还是mapFile
@@ -315,6 +315,7 @@ public class MappedFile extends ReferenceResource {
                 this.flushedPosition.set(getReadPosition());
             }
         }
+        // 返回当前文件的刷盘位置
         return this.getFlushedPosition();
     }
 

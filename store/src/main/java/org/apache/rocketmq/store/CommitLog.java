@@ -61,6 +61,8 @@ public class CommitLog {
     protected final static int BLANK_MAGIC_CODE = -875286124;
     protected final MappedFileQueue mappedFileQueue;
     protected final DefaultMessageStore defaultMessageStore;
+
+    // 如果是「同步刷盘」则赋值为：GroupCommitService，否则 FlushRealTimeService
     private final FlushCommitLogService flushCommitLogService;
 
     //If TransientStorePool enabled, we must flush message to FileChannel at fixed periods
@@ -736,7 +738,7 @@ public class CommitLog {
 
         // 根据刷盘方式提交刷盘请求
         CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
-        // 提交复制请求
+        // 提交主从复制请求
         CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
         // 合并2个异步请求，等待两个future的结果
         return flushResultFuture.thenCombine(replicaResultFuture, (flushStatus, replicaStatus) -> {
@@ -868,12 +870,14 @@ public class CommitLog {
 
     public CompletableFuture<PutMessageStatus> submitFlushRequest(AppendMessageResult result, MessageExt messageExt) {
         // Synchronization flush
+        // 同步刷新磁盘
         if (FlushDiskType.SYNC_FLUSH == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes(), this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
                 flushDiskWatcher.add(request);
                 service.putRequest(request);
+                // 返回同步刷盘的future
                 return request.future();
             } else {
                 service.wakeup();
@@ -881,12 +885,16 @@ public class CommitLog {
             }
         }
         // Asynchronous flush
+        // 异步刷新
         else {
+            // 如果没有开启瞬态内存池则使用 FlushRealTimeService 异步刷盘
             if (!this.defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
                 flushCommitLogService.wakeup();
             } else {
+                // 开启瞬态内存池则使用 CommitRealTimeService 刷盘
                 commitLogService.wakeup();
             }
+            // 直接返回结果
             return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
         }
     }
@@ -1212,19 +1220,32 @@ public class CommitLog {
      * GroupCommit Service
      * 同步刷盘实现：
      * 1、主要是通过10ms一次的刷盘行为
-     * 2、添加刷盘请求立即唤醒刷盘线程进行刷盘
+     * 2、同时添加刷盘请求时立即唤醒刷盘线程进行刷盘
      * 3、mappedFileQueue.flush 通过具体 mappedByteBuffer.force 进行page cache刷盘到disk
      */
     class GroupCommitService extends FlushCommitLogService {
+
+        // volatile 关键体现在方法swapRequests中
         private volatile LinkedList<GroupCommitRequest> requestsWrite = new LinkedList<GroupCommitRequest>();
+
+        // volatile 关键体现在方法swapRequests中
         private volatile LinkedList<GroupCommitRequest> requestsRead = new LinkedList<GroupCommitRequest>();
-        // 非IO场景使用自旋锁提升性能
+
+        // 非IO场景使用自旋锁提升性能，注意此锁没有内存可见性
         private final PutMessageSpinLock lock = new PutMessageSpinLock();
 
+        /**
+         * synchronized 修饰保证了 内存可见性 + 单线程执行
+         * 由外部线程调用该方法添加提交请求
+         *
+         * @param request
+         */
         public synchronized void putRequest(final GroupCommitRequest request) {
+            // 疑问：已经有了 synchronized 为什么还需要自选锁？
+            // 回答：在线程循环执行请求交换的时候，需要构建一个互斥条件
             lock.lock();
             try {
-                // 仅仅是追加请求到list中
+                // 仅仅是追加请求到内存的list中
                 this.requestsWrite.add(request);
             } finally {
                 lock.unlock();
@@ -1251,19 +1272,22 @@ public class CommitLog {
                     // two times the flush
                     boolean flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                     for (int i = 0; i < 2 && !flushOK; i++) {
+                        // flush 方法需要传 flushLeastPages 参数，它代表刷盘的最小页数，
+                        // 对于同步刷盘来说，不允许消息丢失，只要写入数据就要刷盘，所以页数为 0。
                         CommitLog.this.mappedFileQueue.flush(0);
                         flushOK = CommitLog.this.mappedFileQueue.getFlushedWhere() >= req.getNextOffset();
                     }
-
                     // 设置同步刷盘结果并唤醒调用者线程
                     req.wakeupCustomer(flushOK ? PutMessageStatus.PUT_OK : PutMessageStatus.FLUSH_DISK_TIMEOUT);
                 }
 
                 long storeTimestamp = CommitLog.this.mappedFileQueue.getStoreTimestamp();
                 if (storeTimestamp > 0) {
+                    // 刷新Checkpoint文件的物理消息存储时间
                     CommitLog.this.defaultMessageStore.getStoreCheckpoint().setPhysicMsgTimestamp(storeTimestamp);
                 }
 
+                // 请求读List处理完成后，设置为空
                 this.requestsRead = new LinkedList<>();
             } else {
                 // Because of individual messages is set to not sync flush, it
@@ -1292,10 +1316,12 @@ public class CommitLog {
                 CommitLog.log.warn(this.getServiceName() + " Exception, ", e);
             }
 
+            // 这里加锁是因为保持跟 putRequest 方法互斥等待
             synchronized (this) {
                 this.swapRequests();
             }
 
+            // 最后再次执行一个提交
             this.doCommit();
 
             CommitLog.log.info(this.getServiceName() + " service end");
@@ -1303,6 +1329,7 @@ public class CommitLog {
 
         @Override
         protected void onWaitEnd() {
+            // 这里方法调用不用加锁，因为内部方法保证了穿行语义和内存可见性
             this.swapRequests();
         }
 
