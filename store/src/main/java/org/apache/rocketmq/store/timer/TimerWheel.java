@@ -59,10 +59,9 @@ public class TimerWheel {
 
         try {
             randomAccessFile = new RandomAccessFile(this.fileName, "rw");
-            if (file.exists() && randomAccessFile.length() != 0 &&
-                randomAccessFile.length() != wheelLength) {
+            if (file.exists() && randomAccessFile.length() != 0 && randomAccessFile.length() != wheelLength) {
                 throw new RuntimeException(String.format("Timer wheel length:%d != expected:%s",
-                    randomAccessFile.length(), wheelLength));
+                        randomAccessFile.length(), wheelLength));
             }
             randomAccessFile.setLength(wheelLength);
             fileChannel = randomAccessFile.getChannel();
@@ -124,7 +123,7 @@ public class TimerWheel {
     public Slot getRawSlot(long timeMs) {
         localBuffer.get().position(getSlotIndex(timeMs) * Slot.SIZE);
         return new Slot(localBuffer.get().getLong() * precisionMs,
-            localBuffer.get().getLong(), localBuffer.get().getLong(), localBuffer.get().getInt(), localBuffer.get().getInt());
+                localBuffer.get().getLong(), localBuffer.get().getLong(), localBuffer.get().getInt(), localBuffer.get().getInt());
     }
 
     public int getSlotIndex(long timeMs) {
@@ -139,6 +138,7 @@ public class TimerWheel {
         localBuffer.get().putLong(firstPos);
         localBuffer.get().putLong(lastPos);
     }
+
     public void putSlot(long timeMs, long firstPos, long lastPos, int num, int magic) {
         localBuffer.get().position(getSlotIndex(timeMs) * Slot.SIZE);
         localBuffer.get().putLong(timeMs / precisionMs);
