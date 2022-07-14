@@ -58,8 +58,16 @@ public class MappedFile extends ReferenceResource {
     private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
 
 
+    /**
+     * 当前映射文件写的位置，从0开始到文件大小
+     */
     protected final AtomicInteger wrotePosition = new AtomicInteger(0);
+
+    /**
+     * 当前映射文件的提交数据的位置，用于直接内存倒腾到文件通道的进度位置表示
+     */
     protected final AtomicInteger committedPosition = new AtomicInteger(0);
+
     private final AtomicInteger flushedPosition = new AtomicInteger(0);
 
     protected int fileSize;
@@ -256,6 +264,12 @@ public class MappedFile extends ReferenceResource {
         return this.fileFromOffset;
     }
 
+    /**
+     * 给consumerQueue使用的，因为目前consumerQueue采用的是 mmap 的方式
+     *
+     * @param data
+     * @return
+     */
     public boolean appendMessage(final byte[] data) {
         int currentPos = this.wrotePosition.get();
 
@@ -276,6 +290,7 @@ public class MappedFile extends ReferenceResource {
 
     /**
      * Content of data from offset to offset + length will be wrote to file.
+     * 给主从同步的情况调用
      *
      * @param offset The offset of the subarray to be used.
      * @param length The length of the subarray to be used.
@@ -368,6 +383,7 @@ public class MappedFile extends ReferenceResource {
                 byteBuffer.limit(writePos);
                 // 设置文件偏移量
                 this.fileChannel.position(lastCommittedPosition);
+                // 将直接内存的数据写入到文件通道中
                 this.fileChannel.write(byteBuffer);
                 // 移动提交指针到写入位置
                 this.committedPosition.set(writePos);
