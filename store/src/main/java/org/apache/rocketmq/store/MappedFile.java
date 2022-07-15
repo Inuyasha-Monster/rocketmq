@@ -446,6 +446,7 @@ public class MappedFile extends ReferenceResource {
 
     public SelectMappedBufferResult selectMappedBuffer(int pos) {
         int readPosition = getReadPosition();
+        // pos在可以读取的范围内
         if (pos < readPosition && pos >= 0) {
             if (this.hold()) {
                 ByteBuffer byteBuffer = this.mappedByteBuffer.slice();

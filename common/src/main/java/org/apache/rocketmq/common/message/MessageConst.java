@@ -66,6 +66,7 @@ public class MessageConst {
     public static final String PROPERTY_TIMER_DEL_UNIQKEY = "TIMER_DEL_UNIQKEY";
     public static final String PROPERTY_TIMER_DELIVER_MS = "TIMER_DELIVER_MS";
     public static final String PROPERTY_TIMER_DELAY_LEVEL = "TIMER_DELAY_LEVEL";
+    // 延时多少秒
     public static final String PROPERTY_TIMER_DELAY_SEC = "TIMER_DELAY_SEC";
     public static final String PROPERTY_TIMER_DELAY_MS = "TIMER_DELAY_MS";
 

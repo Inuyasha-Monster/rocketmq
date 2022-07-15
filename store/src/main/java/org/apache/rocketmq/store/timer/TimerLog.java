@@ -33,10 +33,10 @@ public class TimerLog {
             + 8 //prev pos
             + 4 //magic value
             + 8 //curr write time, for trace
-            + 4 //delayed time, for check
-            + 8 //offsetPy
-            + 4 //sizePy
-            + 4 //hash code of real topic
+            + 4 //delayed time, for check 该条记录的定时时间
+            + 8 //offsetPy 消息在commitlog的物理位置
+            + 4 //sizePy 消息的物理大小
+            + 4 //hash code of real topic 消息主题的hash值
             + 8; //reserved value, just in case of
     public final static int UNIT_PRE_SIZE_FOR_MSG = 28;
     public final static int UNIT_PRE_SIZE_FOR_METRIC = 40;
@@ -93,6 +93,7 @@ public class TimerLog {
     }
 
     public SelectMappedBufferResult getTimerMessage(long offsetPy) {
+        // 定位一个映射文件
         MappedFile mappedFile = mappedFileQueue.findMappedFileByOffset(offsetPy);
         if (null == mappedFile)
             return null;

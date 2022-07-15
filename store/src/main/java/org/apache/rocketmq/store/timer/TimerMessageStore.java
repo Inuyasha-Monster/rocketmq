@@ -175,12 +175,15 @@ public class TimerMessageStore {
         for (int i = 0; i < dequeueGetMessageServices.length; i++) {
             dequeueGetMessageServices[i] = new TimerDequeueGetMessageService();
         }
+
+        // 构建三个线程TimerDequeuePutMessageService
         int putThreadNum = storeConfig.getTimerPutMessageThreadNum();
         if (putThreadNum <= 0) putThreadNum = 1;
         dequeuePutMessaageServices = new TimerDequeuePutMessageService[putThreadNum];
         for (int i = 0; i < dequeuePutMessaageServices.length; i++) {
             dequeuePutMessaageServices[i] = new TimerDequeuePutMessageService();
         }
+
         if (storeConfig.isTimerEnableDisruptor()) {
             enqueuePutQueue = new DisruptorBlockingQueue<TimerRequest>(1024);
             dequeueGetQueue = new DisruptorBlockingQueue<List<TimerRequest>>(1024);
@@ -569,6 +572,7 @@ public class TimerMessageStore {
         if (!isRunningEnqueue()) {
             return false;
         }
+        // 获取延时topic中的消费队列
         ConsumeQueue cq = this.messageStore.getConsumeQueue(TIMER_TOPIC, queueId);
         if (null == cq) {
             return false;
@@ -578,17 +582,23 @@ public class TimerMessageStore {
             currQueueOffset = cq.getMinOffsetInQueue();
         }
         long offset = currQueueOffset;
+        // 根据指定的offset，找到对应的mappedFile中可以读取的所有数据
         SelectMappedBufferResult bufferCQ = cq.getIndexBuffer(offset);
         if (null == bufferCQ) {
             return false;
         }
         try {
             int i = 0;
+            // 按照20个字节的间隔读取consumerQueue的单位数据
             for (; i < bufferCQ.getSize(); i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
                 try {
+                    // 读取8个字节的数据获得在commitLog中的物理偏移量
                     long offsetPy = bufferCQ.getByteBuffer().getLong();
+                    // 消息大小
                     int sizePy = bufferCQ.getByteBuffer().getInt();
+                    // 不需要数据，仅仅是移动buffer的position
                     bufferCQ.getByteBuffer().getLong(); //tags code
+                    // 读取commitLog中的消息体
                     MessageExt msgExt = getMessageByCommitOffset(offsetPy, sizePy);
                     if (msgExt != null) {
                         lastEnqueueButExpiredTime = System.currentTimeMillis();
@@ -598,6 +608,7 @@ public class TimerMessageStore {
                         msgExt.setQueueOffset(offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE));
                         TimerRequest timerRequest = new TimerRequest(offsetPy, sizePy, delayedTime, System.currentTimeMillis(), MAGIC_DEFAULT, msgExt);
                         while (true) {
+                            // 将timerRequest
                             if (enqueuePutQueue.offer(timerRequest, 3, TimeUnit.SECONDS)) {
                                 break;
                             }
@@ -619,6 +630,7 @@ public class TimerMessageStore {
                 if (!isRunningEnqueue()) {
                     return false;
                 }
+
                 currQueueOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
             }
             currQueueOffset = offset + (i / ConsumeQueue.CQ_STORE_UNIT_SIZE);
@@ -652,6 +664,7 @@ public class TimerMessageStore {
         }
         String realTopic = messageExt.getProperty(MessageConst.PROPERTY_REAL_TOPIC);
 
+        // 通过延时时间找到对应的槽
         Slot slot = timerWheel.getSlot(delayedTime);
         ByteBuffer tmpBuffer = timerLogBuffer;
         tmpBuffer.clear();
@@ -664,6 +677,7 @@ public class TimerMessageStore {
         tmpBuffer.putInt(sizePy); //size
         tmpBuffer.putInt(hashTopicForMetrics(realTopic)); //hashcode of real topic
         tmpBuffer.putLong(0); //reserved value, just set to 0 now
+        // 追加数据到timerLog文件中
         long ret = timerLog.append(tmpBuffer.array(), 0, TimerLog.UNIT_SIZE);
         if (-1 != ret) {
             // If it's a delete message, then slot's total num -1
@@ -930,9 +944,12 @@ public class TimerMessageStore {
             MessageExt msgExt = null;
             bufferLocal.get().position(0);
             bufferLocal.get().limit(sizePy);
+            // 从commitLog中读取指定物理位置的消息，并填充到buffer中
             boolean res = messageStore.getData(offsetPy, sizePy, bufferLocal.get());
             if (res) {
+                // 切换成读取模式
                 bufferLocal.get().flip();
+                // 读取数据到msg中
                 msgExt = MessageDecoder.decode(bufferLocal.get(), true, false, false);
             }
             if (null == msgExt) {
@@ -1162,6 +1179,9 @@ public class TimerMessageStore {
 
     }
 
+    /**
+     * 整理功能来说：就是将延时topic的consumerQueue数据读取出来进而读取对应的commitLog数据的msg，封装为timerRequest，然后投递到enqueuePutQueue队列中
+     */
     class TimerEnqueueGetService extends ServiceThread {
 
         @Override
@@ -1227,7 +1247,9 @@ public class TimerMessageStore {
                                 if (isMaster() && req.getDelayTime() < currWriteTimeMs) {
                                     dequeuePutQueue.put(req);
                                 } else {
+                                    // 将消息写入到timerLog
                                     boolean doEnqueueRes = doEnqueue(req.getOffsetPy(), req.getSizePy(), req.getDelayTime(), req.getMsg());
+                                    // 写入成功
                                     req.idempotentRelease(doEnqueueRes || storeConfig.isTimerSkipUnknownError());
                                 }
                             } catch (Throwable t) {
@@ -1245,6 +1267,7 @@ public class TimerMessageStore {
                             allSucc = allSucc && tr.isSucc();
                         }
                         if (allSucc) {
+                            // 全部写入成功退出循环
                             break;
                         } else {
                             holdMomentForUnknownError();
