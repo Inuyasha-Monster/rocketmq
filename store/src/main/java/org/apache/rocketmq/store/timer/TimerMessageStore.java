@@ -697,8 +697,13 @@ public class TimerMessageStore {
         if (-1 != ret) {
             // If it's a delete message, then slot's total num -1
             // TODO: check if the delete msg is in the same slot with "the msg to be deleted".
-            timerWheel.putSlot(delayedTime, slot.firstPos == -1 ? ret : slot.firstPos, ret,
-                    isDelete ? slot.num - 1 : slot.num + 1, slot.magic);
+
+            // 将该任务放进时间轮的指定位置。
+            timerWheel.putSlot(delayedTime,
+                    slot.firstPos == -1 ? ret : slot.firstPos,
+                    ret,
+                    isDelete ? slot.num - 1 : slot.num + 1,
+                    slot.magic);
             addMetric(messageExt, isDelete ? -1 : 1);
         }
         return -1 != ret;
@@ -1269,7 +1274,7 @@ public class TimerMessageStore {
                             try {
                                 // 如果是主节点并且延时时间已经小于当前的写时间则直接投递到 dequeuePutQueue 队列
                                 if (isMaster() && req.getDelayTime() < currWriteTimeMs) {
-                                    // 说明已经到了延时时间了
+                                    // 说明已经到了延时时间了，直接投递到目标队列
                                     dequeuePutQueue.put(req);
                                 } else {
                                     // 将消息写入到timerLog，进而通过时间轮检查是否到期
