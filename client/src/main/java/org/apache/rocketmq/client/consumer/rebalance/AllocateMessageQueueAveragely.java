@@ -26,6 +26,15 @@ import org.apache.rocketmq.common.message.MessageQueue;
 
 /**
  * Average Hashing queue algorithm
+ * <p>
+ * 为了说明这两种分配算法的分配规则，现在对 16 个队列，进行编号，用 q0~q15 表示，消费者用 c0~c2 表示。
+ * <p>
+ * AllocateMessageQueueAveragely 分配算法的队列负载机制如下：
+ * <p>
+ * c0：q0 q1 q2 q3 q4 q5
+ * c1：q6 q7 q8 q9 q10
+ * c2：q11 q12 q13 q14 q15
+ * 其算法的特点是用总数除以消费者个数，余数按消费者顺序分配给消费者，故 c0 会多分配一个队列，而且队列分配是连续的。
  */
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
