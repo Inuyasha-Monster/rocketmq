@@ -655,7 +655,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
     }
 
     /**
-     * client端的业务处理，处理broker或者namesvr的响应结果
+     * client端的业务处理，处理broker或者namesvr的对client的请求处理
      */
     class NettyClientHandler extends SimpleChannelInboundHandler<RemotingCommand> {
         @Override

@@ -29,6 +29,14 @@ public class TransactionListenerImpl implements TransactionListener {
 
     private ConcurrentHashMap<String, Integer> localTrans = new ConcurrentHashMap<>();
 
+    /**
+     * 发送结果为：SEND_OK 时候，会执行该方法，从业务层面来讲就是：事务的prepare消息发送成功了，你可以执行本地事务逻辑，
+     * 然后返回本地事务状态，告知broker事务消息的最终是提交还是回滚
+     *
+     * @param msg Half(prepare) message
+     * @param arg Custom business parameter
+     * @return
+     */
     @Override
     public LocalTransactionState executeLocalTransaction(Message msg, Object arg) {
         int value = transactionIndex.getAndIncrement();
@@ -37,6 +45,13 @@ public class TransactionListenerImpl implements TransactionListener {
         return LocalTransactionState.UNKNOW;
     }
 
+    /**
+     * 当 executeLocalTransaction 返回 LocalTransactionState.UNKNOW 或者出现异常的时候，
+     * 通过broker触发回调，进行重试回查当前消息的事务状态，两阶段的第二阶段
+     *
+     * @param msg Check message
+     * @return
+     */
     @Override
     public LocalTransactionState checkLocalTransaction(MessageExt msg) {
         Integer status = localTrans.get(msg.getTransactionId());
