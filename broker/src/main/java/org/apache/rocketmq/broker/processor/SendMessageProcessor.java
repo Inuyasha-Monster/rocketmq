@@ -316,6 +316,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
 
         CompletableFuture<PutMessageResult> putMessageResult = null;
         String transFlag = origProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+        // 判断是否为事务消息，是的话会存储到事务的topic主题中
         if (transFlag != null && Boolean.parseBoolean(transFlag)) {
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
                 response.setCode(ResponseCode.NO_PERMISSION);
@@ -327,7 +328,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             // 处理事务消息的存储
             putMessageResult = this.brokerController.getTransactionalMessageService().asyncPrepareMessage(msgInner);
         } else {
-            // 处理其他消息存储，包括普通消息事务commit或者rollback等
+            // 处理其他消息存储，例如普通消息、延时消息等
             putMessageResult = this.brokerController.getMessageStore().asyncPutMessage(msgInner);
         }
         // 具体处理消息存储逻辑
