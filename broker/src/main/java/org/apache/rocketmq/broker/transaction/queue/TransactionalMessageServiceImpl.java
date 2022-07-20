@@ -500,6 +500,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
     private OperationResult getHalfMessageByOffset(long commitLogOffset) {
         OperationResult response = new OperationResult();
+        // 通过消息存储的物理位置获取完整消息，实际委托给 MessageStore 的 lookMessageByOffset 方法
         MessageExt messageExt = this.transactionalMessageBridge.lookMessageByOffset(commitLogOffset);
         if (messageExt != null) {
             response.setPrepareMessage(messageExt);
@@ -513,6 +514,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
     @Override
     public boolean deletePrepareMessage(MessageExt msgExt) {
+        // 将一个标记为：REMOVETAG（"d"） 的op消息写入 opTopic 标记消息被删除了
         if (this.transactionalMessageBridge.putOpMessage(msgExt, TransactionalMessageUtil.REMOVETAG)) {
             log.debug("Transaction op message write successfully. messageId={}, queueId={} msgExt:{}", msgExt.getMsgId(), msgExt.getQueueId(), msgExt);
             return true;
@@ -524,7 +526,9 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
     @Override
     public OperationResult commitMessage(EndTransactionRequestHeader requestHeader) {
-        return getHalfMessageByOffset(requestHeader.getCommitLogOffset());
+        // 获取消息的物理位置
+        final Long commitLogOffset = requestHeader.getCommitLogOffset();
+        return getHalfMessageByOffset(commitLogOffset);
     }
 
     @Override

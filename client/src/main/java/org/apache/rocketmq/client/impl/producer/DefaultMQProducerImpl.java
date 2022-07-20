@@ -347,7 +347,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                         exception = e;
                     }
 
-                    // 上报回查结果给broker
+                    // 将回查结果上报回查结果给broker
                     this.processTransactionState(
                             localTransactionState,
                             group,
@@ -1314,6 +1314,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         }
 
         try {
+            // 本地事务逻辑执行完成后上报事务状态
             this.endTransaction(msg, sendResult, localTransactionState, localException);
         } catch (Exception e) {
             log.warn("local transaction execute " + localTransactionState + ", but end broker transaction failed", e);

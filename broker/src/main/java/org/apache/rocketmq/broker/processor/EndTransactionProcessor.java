@@ -57,12 +57,15 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
         final EndTransactionRequestHeader requestHeader =
             (EndTransactionRequestHeader)request.decodeCommandCustomHeader(EndTransactionRequestHeader.class);
         LOGGER.debug("Transaction request:{}", requestHeader);
+
+        // 如果从服务器直接拒绝处理
         if (BrokerRole.SLAVE == brokerController.getMessageStoreConfig().getBrokerRole()) {
             response.setCode(ResponseCode.SLAVE_NOT_AVAILABLE);
             LOGGER.warn("Message store is slave mode, so end transaction is forbidden. ");
             return response;
         }
 
+        // 检查是否是事务检查的场景，打印日志非主逻辑
         if (requestHeader.getFromTransactionCheck()) {
             switch (requestHeader.getCommitOrRollback()) {
                 case MessageSysFlag.TRANSACTION_NOT_TYPE: {
@@ -122,20 +125,24 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
                     return null;
             }
         }
+
         OperationResult result = new OperationResult();
-        // 会查结果=提交消息
+        // 进行提交消息处理
         if (MessageSysFlag.TRANSACTION_COMMIT_TYPE == requestHeader.getCommitOrRollback()) {
+            // 通过消息的物理位置查询消息
             result = this.brokerController.getTransactionalMessageService().commitMessage(requestHeader);
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
+                // 将查询出来的消息与请求做基本检查
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
                 if (res.getCode() == ResponseCode.SUCCESS) {
+                    // 将半消息转为实际业务消息
                     MessageExtBrokerInner msgInner = endMessageTransaction(result.getPrepareMessage());
                     msgInner.setSysFlag(MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), requestHeader.getCommitOrRollback()));
                     msgInner.setQueueOffset(requestHeader.getTranStateTableOffset());
                     msgInner.setPreparedTransactionOffset(requestHeader.getCommitLogOffset());
                     msgInner.setStoreTimestamp(result.getPrepareMessage().getStoreTimestamp());
                     MessageAccessor.clearProperty(msgInner, MessageConst.PROPERTY_TRANSACTION_PREPARED);
-                    // 写入原始目标topic使得消息消费者可见
+                    // 写入原始目标topic使得消息消费者可见（todo：这就是与回滚消息不同的关键地方）
                     RemotingCommand sendResult = sendFinalMessage(msgInner);
                     if (sendResult.getCode() == ResponseCode.SUCCESS) {
                         // 写入成功推进确认队列的偏移量
@@ -146,8 +153,10 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
                 return res;
             }
         } else if (MessageSysFlag.TRANSACTION_ROLLBACK_TYPE == requestHeader.getCommitOrRollback()) {
+            // 处理回滚，首先获取半消息
             result = this.brokerController.getTransactionalMessageService().rollbackMessage(requestHeader);
             if (result.getResponseCode() == ResponseCode.SUCCESS) {
+                // 查询出来的半消息与请求做二次检查
                 RemotingCommand res = checkPrepareMessage(result.getPrepareMessage(), requestHeader);
                 if (res.getCode() == ResponseCode.SUCCESS) {
                     // 回滚消息也推进确认消息队列的偏移量
@@ -197,8 +206,11 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
     }
 
     private MessageExtBrokerInner endMessageTransaction(MessageExt msgExt) {
+        // 构造一个真实消息
         MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
+        // 从消息属性中恢复实际的主题
         msgInner.setTopic(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_TOPIC));
+        // 从消息属性中恢复实际的主题队列Id
         msgInner.setQueueId(Integer.parseInt(msgExt.getUserProperty(MessageConst.PROPERTY_REAL_QUEUE_ID)));
         msgInner.setBody(msgExt.getBody());
         msgInner.setFlag(msgExt.getFlag());

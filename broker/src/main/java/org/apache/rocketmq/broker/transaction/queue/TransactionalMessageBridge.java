@@ -202,14 +202,26 @@ public class TransactionalMessageBridge {
         return store.asyncPutMessage(parseHalfMessageInner(messageInner));
     }
 
+    /**
+     * 转化为half消息
+     *
+     * @param msgInner
+     * @return
+     */
     private MessageExtBrokerInner parseHalfMessageInner(MessageExtBrokerInner msgInner) {
+        // 将实际业务的主题转移到消息属性上
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_TOPIC, msgInner.getTopic());
+        // 将实际业务的主题对应的队列Id，转移到消息属性上
         MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_REAL_QUEUE_ID,
                 String.valueOf(msgInner.getQueueId()));
+        // 重置消息的系统标记位
         msgInner.setSysFlag(
                 MessageSysFlag.resetTransactionValue(msgInner.getSysFlag(), MessageSysFlag.TRANSACTION_NOT_TYPE));
+        // 设置是半消息主题："RMQ_SYS_TRANS_HALF_TOPIC"
         msgInner.setTopic(TransactionalMessageUtil.buildHalfTopic());
+        // 默认事务主题只有一个队列为：0
         msgInner.setQueueId(0);
+        // 将新的属性写入当前消息
         msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
         return msgInner;
     }

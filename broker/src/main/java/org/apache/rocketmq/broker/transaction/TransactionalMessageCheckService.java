@@ -41,17 +41,24 @@ public class TransactionalMessageCheckService extends ServiceThread {
         log.info("Start transaction check service thread!");
         long checkInterval = brokerController.getBrokerConfig().getTransactionCheckInterval();
         while (!this.isStopped()) {
+            // 1分钟检查一下事务消息的状态
             this.waitForRunning(checkInterval);
         }
         log.info("End transaction check service thread!");
     }
 
+    /**
+     * 等待时间结束是触发该方法调用
+     */
     @Override
     protected void onWaitEnd() {
+        // 6s：消息至少得超过这个时间之后才开始检查
         long timeout = brokerController.getBrokerConfig().getTransactionTimeOut();
+        // 一条消息最大的检查次数
         int checkMax = brokerController.getBrokerConfig().getTransactionCheckMax();
         long begin = System.currentTimeMillis();
         log.info("Begin to check prepare message, begin time:{}", begin);
+        // 1分钟检查一次所有可能还需要检查的事务消息的最终状态
         this.brokerController.getTransactionalMessageService().check(timeout, checkMax, this.brokerController.getTransactionalMessageCheckListener());
         log.info("End to check prepare message, consumed time:{}", System.currentTimeMillis() - begin);
     }
