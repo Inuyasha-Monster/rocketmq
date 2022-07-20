@@ -620,7 +620,7 @@ public class CommitLog {
         StoreStatsService storeStatsService = this.defaultMessageStore.getStoreStatsService();
 
         String topic = msg.getTopic();
-//        int queueId msg.getQueueId();
+        // int queueId msg.getQueueId();
         final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
         if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
                 || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
@@ -631,10 +631,13 @@ public class CommitLog {
                     msg.setDelayTimeLevel(this.defaultMessageStore.getScheduleMessageService().getMaxDelayLevel());
                 }
 
+                // 如果是延时消息替换topic为："SCHEDULE_TOPIC_XXXX" 系统主题
                 topic = TopicValidator.RMQ_SYS_SCHEDULE_TOPIC;
+                // 等级延时等级计算对应的队列Id
                 int queueId = ScheduleMessageService.delayLevel2QueueId(msg.getDelayTimeLevel());
 
                 // Backup real topic, queueId
+                // 暂存原始业务的主题和队列Id
                 MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_TOPIC, msg.getTopic());
                 MessageAccessor.putProperty(msg, MessageConst.PROPERTY_REAL_QUEUE_ID, String.valueOf(msg.getQueueId()));
                 msg.setPropertiesString(MessageDecoder.messageProperties2String(msg.getProperties()));
@@ -658,6 +661,7 @@ public class CommitLog {
         // 将msg打进 encoderBuffer 中
         PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
         if (encodeResult != null) {
+            // 错误情况直接返回
             return CompletableFuture.completedFuture(encodeResult);
         }
         // 然后将上述的 encoderBuffer 字节直接内存缓冲区，设置到msg的 encoderBuffer 中
