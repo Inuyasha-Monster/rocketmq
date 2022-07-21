@@ -318,6 +318,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
         String transFlag = origProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
         // 判断是否为事务消息，是的话会存储到事务的topic主题中
         if (transFlag != null && Boolean.parseBoolean(transFlag)) {
+            // 判断当前broker的配置是否支持事务消息的投递
             if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
                 response.setCode(ResponseCode.NO_PERMISSION);
                 response.setRemark(
@@ -325,7 +326,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                                 + "] sending transaction message is forbidden");
                 return CompletableFuture.completedFuture(response);
             }
-            // 处理事务消息的存储
+            // 处理事务消息的存储，实际是通过：parseHalfMessageInner 将消息转为半消息进行存储
             putMessageResult = this.brokerController.getTransactionalMessageService().asyncPrepareMessage(msgInner);
         } else {
             // 处理其他消息存储，例如普通消息、延时消息等

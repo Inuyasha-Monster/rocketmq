@@ -137,6 +137,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                       int transactionCheckMax,
                       AbstractTransactionalMessageCheckListener listener) {
         try {
+            // "RMQ_SYS_TRANS_HALF_TOPIC"
             String topic = TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC;
             // 获取 "RMQ_SYS_TRANS_HALF_TOPIC" 对应的消息队列，其实只有一个queueId=0的队列
             Set<MessageQueue> msgQueues = transactionalMessageBridge.fetchMessageQueues(topic);
@@ -147,11 +148,11 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             log.debug("Check topic={}, queues={}", topic, msgQueues);
             for (MessageQueue messageQueue : msgQueues) {
                 long startTime = System.currentTimeMillis();
-                // 获取当前half队列对应的op队列
+                // 获取当前half队列对应的op队列(ps: 该队列主题 "RMQ_SYS_TRANS_OP_HALF_TOPIC")
                 MessageQueue opQueue = getOpQueue(messageQueue);
                 // 获取half队列的消费偏移量（内部固定一个消费者组："CID_RMQ_SYS_TRANS"）
                 long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
-                // 获取op队列的消费偏移量
+                // 获取op队列的消费偏移量（内部固定一个消费者组："CID_RMQ_SYS_TRANS"）
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {

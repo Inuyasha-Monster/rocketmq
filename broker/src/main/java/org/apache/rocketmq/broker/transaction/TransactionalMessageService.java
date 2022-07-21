@@ -36,6 +36,7 @@ public interface TransactionalMessageService {
 
     /**
      * Process prepare message in async manner, we should put this message to storage service
+     * 异步处理半消息
      *
      * @param messageInner Prepare(Half) message.
      * @return CompletableFuture of put result, will be completed at put success(flush and replica done)
@@ -72,6 +73,7 @@ public interface TransactionalMessageService {
      * Traverse uncommitted/unroll back half message and send check back request to producer to obtain transaction
      * status.
      * 通过向producer回查事务消息的最终状态，确定事务消息是提交还是回滚
+     * 定时任务：不断的扫描未结束的事务，同时对超过指定时间还不知道状态的事务进行回查操作。
      *
      * @param transactionTimeout  The minimum time of the transactional message to be checked firstly, one message only
      *                            exceed this time interval that can be checked.

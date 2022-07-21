@@ -323,8 +323,11 @@ public class TransactionalMessageBridge {
      * @return This method will always return true.
      */
     private boolean addRemoveTagInTransactionOp(MessageExt prepareMessage, MessageQueue messageQueue) {
+        // 消息内容："RMQ_SYS_TRANS_OP_HALF_TOPIC" + "d" + queueOffset(body)
+        // 对应：String topic, String tags, byte[] body
         Message message = new Message(TransactionalMessageUtil.buildOpTopic(), TransactionalMessageUtil.REMOVETAG,
                 String.valueOf(prepareMessage.getQueueOffset()).getBytes(TransactionalMessageUtil.charset));
+        // 实际也是追加一条 op 消息到 topic="RMQ_SYS_TRANS_OP_HALF_TOPIC" 中
         writeOp(message, messageQueue);
         return true;
     }
@@ -343,7 +346,9 @@ public class TransactionalMessageBridge {
         if (opQueue == null) {
             opQueue = new MessageQueue(TransactionalMessageUtil.buildOpTopic(), mq.getBrokerName(), mq.getQueueId());
         }
-        putMessage(makeOpMessageInner(message, opQueue));
+        // 生成op消息写入store中
+        final MessageExtBrokerInner opMessageInner = makeOpMessageInner(message, opQueue);
+        putMessage(opMessageInner);
     }
 
     private MessageQueue getOpQueueByHalf(MessageQueue halfMQ) {
