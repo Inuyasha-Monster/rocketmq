@@ -124,7 +124,11 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     }
 
     /**
-     * 逻辑梳理参考：https://www.cnblogs.com/enoc/p/rocketmq-so-no-nana.html
+     * 逻辑梳理参考：
+     * https://www.cnblogs.com/enoc/p/rocketmq-so-no-nana.html
+     *
+     * 源码解析：
+     * https://github.com/Cicizz/binary/blob/master/RocketMQ/RocketMQ%E4%BA%8B%E5%8A%A1%E6%B6%88%E6%81%AF/RocketMQ%E6%98%AF%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E4%BA%8B%E5%8A%A1%E6%B6%88%E6%81%AF%E7%9A%84.md
      *
      * @param transactionTimeout  The minimum time of the transactional message to be checked firstly, one message only
      *                            exceed this time interval that can be checked.
