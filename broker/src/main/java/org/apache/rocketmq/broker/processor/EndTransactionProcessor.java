@@ -145,7 +145,10 @@ public class EndTransactionProcessor extends AsyncNettyRequestProcessor implemen
                     // 写入原始目标topic使得消息消费者可见（todo：这就是与回滚消息不同的关键地方）
                     RemotingCommand sendResult = sendFinalMessage(msgInner);
                     if (sendResult.getCode() == ResponseCode.SUCCESS) {
-                        // 写入成功推进确认队列的偏移量
+                        // 写入成功推进确认队列的偏移量，具体表现为：
+                        // 删除half消息(并发从磁盘真正删除)，这么做的还有一个原因就是commitLog是追加方式的，不能后退
+                        // 具体的逻辑是构建一个消息放入RMQ_SYS_OP_HALF_TOPIC队列，queudid为对应half消息的queueid
+                        // 消息的内容body对应half消息：consumeQueue的queueOffset(逻辑偏移量)，并将TAG属性设置为“d”
                         this.brokerController.getTransactionalMessageService().deletePrepareMessage(result.getPrepareMessage());
                     }
                     return sendResult;

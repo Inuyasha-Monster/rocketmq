@@ -163,15 +163,24 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
                 // 用来记录已经被处理了的 op 消息的偏移量
                 List<Long> doneOpOffset = new ArrayList<>();
-                // 用来记录已经完成了的 half 消息的偏移量
-                // key: halfOffset, value: opOffset
+
+                // 用来记录已经完成了回查的 half 消息的偏移量
+                // key: halfOffset 半消息的逻辑偏移量, value: opOffset 操作消息的逻辑偏移量
                 HashMap<Long, Long> removeMap = new HashMap<>();
+
+                // 对每一个拉取到的op消息，比对op消息的内容(它的内容其实就是half消息的逻辑队列偏移量)和half队列当前偏移量
+                // 1、如果大于或等于half队列当前的偏移量.说明OP消息的内容已经回查过了，
+                //    将OP消息的逻辑队列和偏移量放入removeMap，这个removeMap只做后面推进op逻辑队列的位点使用
+                // 2、如果小于half队列当前的偏移，则存入doneOpOffset中,待进一步检查是否需要回查
                 PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
+
+                // 当前队列没有新写入的op消息，进行下一个messageQueue的检查
                 if (null == pullResult) {
                     log.error("The queue={} check msgOffset={} with opOffset={} failed, pullResult is null",
                             messageQueue, halfOffset, opOffset);
                     continue;
                 }
+
                 // single thread
                 int getMessageNullCount = 1;
                 long newOffset = halfOffset;
@@ -263,7 +272,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                             if (!putBackHalfMsgQueue(msgExt, i)) {
                                 continue;
                             }
-                            // 然后向 producer 发送检测消息触发回查
+                            // 然后向 producer 发送检测消息触发回查，且是异步线程进行具体回查逻辑
                             listener.resolveHalfMsg(msgExt);
                         } else {
                             // 否则更新 op 消息集合,以确保能够断言该 half 消息的状态
@@ -347,9 +356,11 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             Long queueOffset = getLong(new String(opMessageExt.getBody(), TransactionalMessageUtil.charset));
             log.debug("Topic: {} tags: {}, OpOffset: {}, HalfOffset: {}", opMessageExt.getTopic(),
                     opMessageExt.getTags(), opMessageExt.getQueueOffset(), queueOffset);
+            // 再次检查一下opMsg的tag是不是："d"
             if (TransactionalMessageUtil.REMOVETAG.equals(opMessageExt.getTags())) {
                 // 在 已处理偏移量 之前的话则可直接放入 已处理偏移量集合
                 if (queueOffset < miniOffset) {
+                    // 表示当前半消息的偏移量滞后最新的Op偏移量，加入 doneOpOffset 集合
                     doneOpOffset.add(opMessageExt.getQueueOffset());
                 } else {
                     // 否则放入需要移除的 half 的消息的集合
