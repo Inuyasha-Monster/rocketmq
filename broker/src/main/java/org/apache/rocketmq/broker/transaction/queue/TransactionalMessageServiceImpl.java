@@ -151,13 +151,16 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             }
             log.debug("Check topic={}, queues={}", topic, msgQueues);
             for (MessageQueue messageQueue : msgQueues) {
+
                 long startTime = System.currentTimeMillis();
+
                 // 获取当前half队列对应的op队列(ps: 该队列主题 "RMQ_SYS_TRANS_OP_HALF_TOPIC")
                 MessageQueue opQueue = getOpQueue(messageQueue);
                 // 获取half队列的消费偏移量（内部固定一个消费者组："CID_RMQ_SYS_TRANS"）
                 long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
                 // 获取op队列的消费偏移量（内部固定一个消费者组："CID_RMQ_SYS_TRANS"）
                 long opOffset = transactionalMessageBridge.fetchConsumeOffset(opQueue);
+
                 log.info("Before check, the queue={} msgOffset={} opOffset={}", messageQueue, halfOffset, opOffset);
                 if (halfOffset < 0 || opOffset < 0) {
                     log.error("MessageQueue: {} illegal offset read: {}, op offset: {},skip this queue", messageQueue,
@@ -190,10 +193,12 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                 long newOffset = halfOffset;
                 long i = halfOffset;
                 while (true) {
+
                     if (System.currentTimeMillis() - startTime > MAX_PROCESS_TIME_LIMIT) {
                         log.info("Queue={} process time reach max={}", messageQueue, MAX_PROCESS_TIME_LIMIT);
                         break;
                     }
+
                     /* 如果该 half 消息存在对应的 op 消息，说明已经被处理了(commit/rollback) */
                     if (removeMap.containsKey(i)) {
                         log.debug("Half offset {} has been committed/rolled back", i);
