@@ -126,7 +126,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
     /**
      * 逻辑梳理参考：
      * https://www.cnblogs.com/enoc/p/rocketmq-so-no-nana.html
-     *
+     * <p>
      * 源码解析：
      * https://github.com/Cicizz/binary/blob/master/RocketMQ/RocketMQ%E4%BA%8B%E5%8A%A1%E6%B6%88%E6%81%AF/RocketMQ%E6%98%AF%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0%E4%BA%8B%E5%8A%A1%E6%B6%88%E6%81%AF%E7%9A%84.md
      *
@@ -156,6 +156,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
 
                 // 获取当前half队列对应的op队列(ps: 该队列主题 "RMQ_SYS_TRANS_OP_HALF_TOPIC")
                 MessageQueue opQueue = getOpQueue(messageQueue);
+
                 // 获取half队列的消费偏移量（内部固定一个消费者组："CID_RMQ_SYS_TRANS"）
                 long halfOffset = transactionalMessageBridge.fetchConsumeOffset(messageQueue);
                 // 获取op队列的消费偏移量（内部固定一个消费者组："CID_RMQ_SYS_TRANS"）
@@ -168,17 +169,15 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                     continue;
                 }
 
-                // 用来记录已经被处理了的 op 消息的偏移量
+                // 用来记录已经被处理了的半消息的对应的Op消息的偏移量
                 List<Long> doneOpOffset = new ArrayList<>();
 
-                // 用来记录已经完成了回查的 half 消息的偏移量
-                // key: halfOffset 半消息的逻辑偏移量, value: opOffset 操作消息的逻辑偏移量
+                // 用来记录已经完成了回查的 half 消息的偏移量，其中key: halfOffset 半消息的逻辑偏移量, value: opOffset 操作消息的逻辑偏移量
                 HashMap<Long, Long> removeMap = new HashMap<>();
 
                 // 对每一个拉取到的op消息，比对op消息的内容(它的内容其实就是half消息的逻辑队列偏移量)和half队列当前偏移量
-                // 1、如果大于或等于half队列当前的偏移量.说明OP消息的内容已经回查过了，
-                //    将OP消息的逻辑队列和偏移量放入removeMap，这个removeMap只做后面推进op逻辑队列的位点使用
-                // 2、如果小于half队列当前的偏移，则存入doneOpOffset中,待进一步检查是否需要回查
+                // 1、如果大于或等于half队列当前的偏移量.说明OP消息的内容已经回查过了，这个removeMap只做后面推进op逻辑队列的位点使用
+                // 2、如果小于half队列当前的偏移，则存入doneOpOffset中
                 PullResult pullResult = fillOpRemoveMap(removeMap, opQueue, opOffset, halfOffset, doneOpOffset);
 
                 // 当前队列没有新写入的op消息，进行下一个messageQueue的检查
@@ -337,9 +336,10 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
      */
     private PullResult fillOpRemoveMap(HashMap<Long, Long> removeMap,
                                        MessageQueue opQueue,
-                                       long pullOffsetOfOp,
-                                       long miniOffset,
+                                       long pullOffsetOfOp, // Op队列的消费偏移量
+                                       long miniOffset, // half队列消费偏移量
                                        List<Long> doneOpOffset) {
+        // 按照消费偏移量获取最多32个消息
         PullResult pullResult = pullOpMsg(opQueue, pullOffsetOfOp, 32);
         if (null == pullResult) {
             return null;
@@ -360,6 +360,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             log.warn("The miss op offset={} in queue={} is empty, pullResult={}", pullOffsetOfOp, opQueue, pullResult);
             return pullResult;
         }
+        // 循环Op的队列获取的消息集合
         for (MessageExt opMessageExt : opMsg) {
             // opMessage 的【body】内容是 half消息的偏移量
             Long queueOffset = getLong(new String(opMessageExt.getBody(), TransactionalMessageUtil.charset));
@@ -369,7 +370,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
             if (TransactionalMessageUtil.REMOVETAG.equals(opMessageExt.getTags())) {
                 // 在 已处理偏移量 之前的话则可直接放入 已处理偏移量集合
                 if (queueOffset < miniOffset) {
-                    // 表示当前半消息的偏移量滞后最新的Op偏移量，加入 doneOpOffset 集合
+                    // 表示当前半消息的偏移量滞后最新的half偏移量，加入 doneOpOffset 集合，表示该半消息已经提交或者回滚了
                     doneOpOffset.add(opMessageExt.getQueueOffset());
                 } else {
                     // 否则放入需要移除的 half 的消息的集合

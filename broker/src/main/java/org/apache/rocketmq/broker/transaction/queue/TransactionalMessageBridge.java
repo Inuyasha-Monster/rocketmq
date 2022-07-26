@@ -128,6 +128,7 @@ public class TransactionalMessageBridge {
             switch (getMessageResult.getStatus()) {
                 case FOUND:
                     pullStatus = PullStatus.FOUND;
+                    // 将找到的消息填充到集合中
                     foundList = decodeMsgList(getMessageResult);
                     this.brokerController.getBrokerStatsManager().incGroupGetNums(group, topic,
                             getMessageResult.getMessageCount());
