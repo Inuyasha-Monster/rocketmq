@@ -76,6 +76,8 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
     public RemotingCommand heartBeat(ChannelHandlerContext ctx, RemotingCommand request) {
         RemotingCommand response = RemotingCommand.createResponseCommand(null);
         HeartbeatData heartbeatData = HeartbeatData.decode(request.getBody(), HeartbeatData.class);
+
+        // 包装client信道信息
         ClientChannelInfo clientChannelInfo = new ClientChannelInfo(
                 ctx.channel(),
                 heartbeatData.getClientID(),
@@ -83,6 +85,7 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
                 request.getVersion()
         );
 
+        // 处理客户端心跳包中的消费数据
         for (ConsumerData data : heartbeatData.getConsumerDataSet()) {
             SubscriptionGroupConfig subscriptionGroupConfig = this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(data.getGroupName());
 
@@ -119,10 +122,12 @@ public class ClientManageProcessor extends AsyncNettyRequestProcessor implements
             }
         }
 
+        // 处理心跳包的生产者信息
         for (ProducerData data : heartbeatData.getProducerDataSet()) {
             this.brokerController.getProducerManager().registerProducer(data.getGroupName(),
                     clientChannelInfo);
         }
+
         response.setCode(ResponseCode.SUCCESS);
         response.setRemark(null);
         return response;

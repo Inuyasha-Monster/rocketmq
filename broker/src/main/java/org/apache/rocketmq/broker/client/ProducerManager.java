@@ -60,6 +60,7 @@ public class ProducerManager {
                 final ClientChannelInfo info = item.getValue();
 
                 long diff = System.currentTimeMillis() - info.getLastUpdateTimestamp();
+                // 超过120s都没有更新过就移除
                 if (diff > CHANNEL_EXPIRED_TIMEOUT) {
                     it.remove();
                     clientChannelTable.remove(info.getClientId());
@@ -95,12 +96,14 @@ public class ProducerManager {
     public synchronized void registerProducer(final String group, final ClientChannelInfo clientChannelInfo) {
         ClientChannelInfo clientChannelInfoFound = null;
 
+        // 检查是否有注册过生产者组
         ConcurrentHashMap<Channel, ClientChannelInfo> channelTable = this.groupChannelTable.get(group);
         if (null == channelTable) {
             channelTable = new ConcurrentHashMap<>();
             this.groupChannelTable.put(group, channelTable);
         }
 
+        // 检查clientId是否有注册过通道
         clientChannelInfoFound = channelTable.get(clientChannelInfo.getChannel());
         if (null == clientChannelInfoFound) {
             channelTable.put(clientChannelInfo.getChannel(), clientChannelInfo);
@@ -109,7 +112,7 @@ public class ProducerManager {
                     clientChannelInfo.toString());
         }
 
-
+        // 更新通道刷新时间
         if (clientChannelInfoFound != null) {
             clientChannelInfoFound.setLastUpdateTimestamp(System.currentTimeMillis());
         }

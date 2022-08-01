@@ -231,7 +231,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                          */
                         if (needDiscard(msgExt, transactionCheckMax) || needSkip(msgExt)) {
                             // 处理并推进偏移量
-                            // 具体的处理方法是: 投入 TRANS_CHECK_MAX_TIME_TOPIC 这个 Topic，等待手动处理
+                            // todo: 具体的处理方法是: 投入 TRANS_CHECK_MAX_TIME_TOPIC 这个 Topic，等待手动处理
                             listener.resolveDiscardMsg(msgExt);
                             // 进入到下一个 half 消息
                             newOffset = i + 1;
@@ -251,6 +251,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                         if (null != checkImmunityTimeStr) {
                             checkImmunityTime = getImmunityTime(checkImmunityTimeStr, transactionTimeout);
                             if (valueOfCurrentMinusBorn < checkImmunityTime) {
+                                // 检查重新投入 half 消息的 Topic
                                 if (checkPrepareQueueOffset(removeMap, doneOpOffset, msgExt)) {
                                     newOffset = i + 1;
                                     i++;
@@ -397,6 +398,7 @@ public class TransactionalMessageServiceImpl implements TransactionalMessageServ
                                             MessageExt msgExt) {
         String prepareQueueOffsetStr = msgExt.getUserProperty(MessageConst.PROPERTY_TRANSACTION_PREPARED_QUEUE_OFFSET);
         if (null == prepareQueueOffsetStr) {
+            // 立即重新投递到half主题
             return putImmunityMsgBackToHalfQueue(msgExt);
         } else {
             long prepareQueueOffset = getLong(prepareQueueOffsetStr);
