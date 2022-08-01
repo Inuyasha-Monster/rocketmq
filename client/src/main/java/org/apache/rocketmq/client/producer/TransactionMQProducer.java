@@ -17,6 +17,7 @@
 package org.apache.rocketmq.client.producer;
 
 import java.util.concurrent.ExecutorService;
+
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
@@ -74,7 +75,7 @@ public class TransactionMQProducer extends DefaultMQProducer {
     @Override
     @Deprecated
     public TransactionSendResult sendMessageInTransaction(final Message msg,
-        final LocalTransactionExecuter tranExecuter, final Object arg) throws MQClientException {
+                                                          final LocalTransactionExecuter tranExecuter, final Object arg) throws MQClientException {
         if (null == this.transactionCheckListener) {
             throw new MQClientException("localTransactionBranchCheckListener is null", null);
         }
@@ -85,7 +86,7 @@ public class TransactionMQProducer extends DefaultMQProducer {
 
     @Override
     public TransactionSendResult sendMessageInTransaction(final Message msg,
-        final Object arg) throws MQClientException {
+                                                          final Object arg) throws MQClientException {
         // 事务消息必须要有事务监听器
         if (null == this.transactionListener) {
             throw new MQClientException("TransactionListener is null", null);
@@ -147,6 +148,11 @@ public class TransactionMQProducer extends DefaultMQProducer {
         return executorService;
     }
 
+    /**
+     * 设置事务消息状态回查线程池
+     *
+     * @param executorService
+     */
     public void setExecutorService(ExecutorService executorService) {
         this.executorService = executorService;
     }
