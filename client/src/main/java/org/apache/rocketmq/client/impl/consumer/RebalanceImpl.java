@@ -364,10 +364,10 @@ public abstract class RebalanceImpl {
 
     /**
      * 前面提到，RebalanceImpl只有一个processQueueTable属性，该属性维护了当前客户端真在处理的所有Queue，
-     * 以及Queue对应的消费进度，updateProcessQueueTableInRebalance则会更新该属性。
+     * 以及Queue对应的消费进度，方法 updateProcessQueueTableInRebalance 则会更新该属性。
      *
      * @param topic
-     * @param mqSet
+     * @param mqSet 得到分配给当前clientId的消费队列
      * @param isOrder
      * @return
      */
@@ -382,17 +382,20 @@ public abstract class RebalanceImpl {
             MessageQueue mq = next.getKey();
             ProcessQueue pq = next.getValue();
 
+            // 保证是同一个主题
             if (mq.getTopic().equals(topic)) {
-                // 如果分配的队列集合中不包含当前mq，表示这个mq不属于当前client，需要移除
+                // 如果分配的队列集合中不包含当前mq，表示这个mq不再属于当前client，需要移除
                 if (!mqSet.contains(mq)) {
+                    // 设置丢弃标记
                     pq.setDropped(true);
                     if (this.removeUnnecessaryMessageQueue(mq, pq)) {
+                        // 从当前 processQueueTable 中移除
                         it.remove();
                         // 设置标记
                         changed = true;
                         log.info("doRebalance, {}, remove unnecessary mq, {}", consumerGroup, mq);
                     }
-                } else if (pq.isPullExpired()) { // mq超时了：距离上一次拉取时间大于120秒了
+                } else if (pq.isPullExpired()) { // mq超时了：距离上一次拉取时间大于120秒了，表示可能当前client消费功能失灵了
                     switch (this.consumeType()) {
                         case CONSUME_ACTIVELY:
                             break;
@@ -422,8 +425,9 @@ public abstract class RebalanceImpl {
                     continue;
                 }
 
-                // 移除不属于自己的mq的消费进度，push模型的集群模式的实际逻辑是map中移除该mq
+                // 移除不属于自己的mq的消费进度，push集群消费模型，实际逻辑是在 offsetTable 中移除该mq
                 this.removeDirtyOffset(mq);
+
                 ProcessQueue pq = new ProcessQueue();
 
                 long nextOffset = -1L;

@@ -559,7 +559,10 @@ public class DefaultMessageStore implements MessageStore {
         return commitLog;
     }
 
-    public GetMessageResult getMessage(final String group, final String topic, final int queueId, final long offset,
+    public GetMessageResult getMessage(final String group,
+                                       final String topic,
+                                       final int queueId,
+                                       final long offset,
                                        final int maxMsgNums,
                                        final MessageFilter messageFilter) {
         if (this.shutdown) {
@@ -647,10 +650,14 @@ public class DefaultMessageStore implements MessageStore {
                                     continue;
                             }
 
+                            // 检查当前偏移量是否命中磁盘
                             boolean isInDisk = checkInDiskByCommitOffset(offsetPy, maxOffsetPy);
 
                             // 如果拉取到指定条目的消息直接退出循环
-                            if (this.isTheBatchFull(sizePy, maxMsgNums, getResult.getBufferTotalSize(), getResult.getMessageCount(),
+                            if (this.isTheBatchFull(sizePy,
+                                    maxMsgNums,
+                                    getResult.getBufferTotalSize(),
+                                    getResult.getMessageCount(),
                                     isInDisk)) {
                                 break;
                             }
