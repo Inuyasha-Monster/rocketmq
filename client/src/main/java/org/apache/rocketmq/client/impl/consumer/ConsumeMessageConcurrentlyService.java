@@ -193,7 +193,8 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             final List<MessageExt> msgs,
             final ProcessQueue processQueue,
             final MessageQueue messageQueue,
-            final boolean dispatchToConsume) {
+            final boolean dispatchToConsume /*该参数暂无使用*/) {
+        // 批量消费消息数量大小，默认为；1
         final int consumeBatchSize = this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
         if (msgs.size() <= consumeBatchSize) {
             ConsumeRequest consumeRequest = new ConsumeRequest(msgs, processQueue, messageQueue);
@@ -374,6 +375,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
 
         @Override
         public void run() {
+            // 判断当前消费请求中的处理队列，是否被丢弃，丢弃的话，跳过消费
             if (this.processQueue.isDropped()) {
                 log.info("the message queue not be able to consume, because it's dropped. group={} {}", ConsumeMessageConcurrentlyService.this.consumerGroup, this.messageQueue);
                 return;

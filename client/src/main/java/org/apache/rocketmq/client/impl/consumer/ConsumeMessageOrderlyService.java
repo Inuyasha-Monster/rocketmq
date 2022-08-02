@@ -214,7 +214,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
      */
     @Override
     public void submitConsumeRequest(
-            final List<MessageExt> msgs,
+            final List<MessageExt> msgs, // 没有直接使用msgs，因为是顺序消息的缘故，需要排序
             final ProcessQueue processQueue,
             final MessageQueue messageQueue,
             final boolean dispathToConsume) {
@@ -448,7 +448,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
             synchronized (objLock) {
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
-                        // 需要判断当前pq是处于锁定状态且没有超时
+                        // 需要判断当前pq是处于锁定状态且没有锁定超时
                         || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
                     final long beginTime = System.currentTimeMillis();
                     for (boolean continueConsume = true; continueConsume; ) {

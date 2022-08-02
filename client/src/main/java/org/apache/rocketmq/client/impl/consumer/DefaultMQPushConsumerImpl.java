@@ -331,6 +331,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                                     pullRequest.getMessageQueue().getTopic(), pullRT);
 
                             long firstMsgOffset = Long.MAX_VALUE;
+                            // 异常情况判断
                             if (pullResult.getMsgFoundList() == null || pullResult.getMsgFoundList().isEmpty()) {
                                 DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
                             } else {
@@ -341,17 +342,19 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
                                 // 将消息投递到processQueue队列中，维持消息顺序，提供给顺序消费模式使用
                                 boolean dispatchToConsume = processQueue.putMessage(pullResult.getMsgFoundList());
-                                // 提交消费请求携带接收的消息数据
+                                // 提交消费请求，并携带接收的消息数据
                                 DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
                                         pullResult.getMsgFoundList(),
                                         processQueue,
                                         pullRequest.getMessageQueue(),
                                         dispatchToConsume);
 
+                                // 默认为0，表示持续不断的拉取新消息
                                 if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval() > 0) {
                                     DefaultMQPushConsumerImpl.this.executePullRequestLater(pullRequest,
                                             DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval());
                                 } else {
+                                    // 立即触发下一次消息的拉取请求
                                     DefaultMQPushConsumerImpl.this.executePullRequestImmediately(pullRequest);
                                 }
                             }
@@ -454,10 +457,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     this.defaultMQPushConsumer.getPullBatchSize(),
                     sysFlag,
                     commitOffsetValue, // 请求拉取消息的时候顺便上报消费进度
-                    BROKER_SUSPEND_MAX_TIME_MILLIS, // broker最大挂起请求时间15s
-                    CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND, // client端的请求容忍最大超时时间
-                    CommunicationMode.ASYNC,
-                    pullCallback
+                    BROKER_SUSPEND_MAX_TIME_MILLIS, // broker最大挂起请求时间15s，用于长轮训
+                    CONSUMER_TIMEOUT_MILLIS_WHEN_SUSPEND, // client端的请求容忍最大超时时间，30s
+                    CommunicationMode.ASYNC, // 标记异步方法
+                    pullCallback // 请求响应的回调函数
             );
         } catch (Exception e) {
             log.error("pullKernelImpl exception", e);
