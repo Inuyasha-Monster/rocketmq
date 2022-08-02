@@ -276,9 +276,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         } else {
             // 顺序消费需要先检查当前处理是否lock锁定
             if (processQueue.isLocked()) {
+                // 首次锁定
                 if (!pullRequest.isPreviouslyLocked()) {
                     long offset = -1L;
                     try {
+                        // 计算从那里开始拉取消息
                         offset = this.rebalanceImpl.computePullFromWhereWithException(pullRequest.getMessageQueue());
                     } catch (Exception e) {
                         this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
@@ -294,12 +296,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                     }
 
                     pullRequest.setPreviouslyLocked(true);
+                    // 设置计算的拉取位点
                     pullRequest.setNextOffset(offset);
                 }
             } else {
                 // 如果没有锁定，则延时拉取消息
                 this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
                 log.info("pull message later because not locked in broker, {}", pullRequest);
+                // 没有锁定直接返回
                 return;
             }
         }

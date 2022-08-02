@@ -332,7 +332,7 @@ public class ProcessQueue {
                         if (entry != null) {
                             result.add(entry.getValue());
                             // 顺序消息消费时，从ProceessQueue中取出的消息，
-                            // 会临时存储在ProceeQueue的consumingMsgOrderlyTreeMap属性中
+                            // 会临时存储在ProceeQueue的 consumingMsgOrderlyTreeMap 属性中
                             consumingMsgOrderlyTreeMap.put(entry.getKey(), entry.getValue());
                         } else {
                             break;
