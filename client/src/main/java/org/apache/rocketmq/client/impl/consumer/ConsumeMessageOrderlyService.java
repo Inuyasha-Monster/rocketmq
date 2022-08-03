@@ -349,7 +349,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             }
         }
 
-        // 消费进度上报
+        // 消费进度上报，且当前处理队列没有被丢弃的情况
         if (commitOffset >= 0 && !consumeRequest.getProcessQueue().isDropped()) {
             this.defaultMQPushConsumerImpl.getOffsetStore().updateOffset(consumeRequest.getMessageQueue(), commitOffset, false);
         }

@@ -367,7 +367,7 @@ public abstract class RebalanceImpl {
      * 以及Queue对应的消费进度，方法 updateProcessQueueTableInRebalance 则会更新该属性。
      *
      * @param topic
-     * @param mqSet 得到分配给当前clientId的消费队列
+     * @param mqSet   得到分配给当前clientId的消费队列
      * @param isOrder
      * @return
      */
@@ -419,7 +419,7 @@ public abstract class RebalanceImpl {
         List<PullRequest> pullRequestList = new ArrayList<PullRequest>();
         for (MessageQueue mq : mqSet) {
             if (!this.processQueueTable.containsKey(mq)) {
-                // 如果是顺序消费模式并且锁定mq不成功则说明当前mq还处于被锁定状态
+                // 如果是顺序消费模式并且向broker远程锁定mq，如果锁定不成功则说明当前mq还处于被锁定状态，则当前mq分配给该消费者失败
                 if (isOrder && !this.lock(mq)) {
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     continue;
