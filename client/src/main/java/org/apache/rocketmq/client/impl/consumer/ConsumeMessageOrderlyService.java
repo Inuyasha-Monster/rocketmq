@@ -514,7 +514,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             try {
                                 // TODO: 2022/6/19 ???这个锁是为啥
                                 // 从逻辑上来看：负载均衡的时候存在移除不属于当前client的mq的操作，其实也会有拿锁的逻辑
-                                // 所以这需要先获得当前processQueue的消费锁
+                                // 所以这需要先获得当前processQueue的消费锁，所以需要等待当前消息消费完
                                 this.processQueue.getConsumeLock().lock(); // // TODO: 2022/6/19 lock应该在try 提价PR
                                 if (this.processQueue.isDropped()) {
                                     log.warn("consumeMessage, the message queue not be able to consume, because it's dropped. {}",

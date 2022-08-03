@@ -89,7 +89,7 @@ public class RebalancePushImpl extends RebalanceImpl {
         this.defaultMQPushConsumerImpl.getOffsetStore().persist(mq);
         // 从当前map中移除该mq，然后定期5s上报给broker
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
-        // 如果顺序消费且集群模式，需要通知broker解除锁定状态
+        // 如果【顺序消费】且【集群模式】，需要通知broker解除锁定状态
         if (this.defaultMQPushConsumerImpl.isConsumeOrderly()
                 && MessageModel.CLUSTERING.equals(this.defaultMQPushConsumerImpl.messageModel())) {
             try {
