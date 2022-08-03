@@ -534,10 +534,15 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     public void sendMessageBack(MessageExt msg, int delayLevel, final String brokerName)
             throws RemotingException, MQBrokerException, InterruptedException, MQClientException {
         try {
+            // 获取消息对应的broker远程地址
             String brokerAddr = (null != brokerName) ? this.mQClientFactory.findBrokerAddressInPublish(brokerName)
                     : RemotingHelper.parseSocketAddressAddr(msg.getStoreHost());
-            this.mQClientFactory.getMQClientAPIImpl().consumerSendMessageBack(brokerAddr, msg,
-                    this.defaultMQPushConsumer.getConsumerGroup(), delayLevel, 5000, getMaxReconsumeTimes());
+            this.mQClientFactory.getMQClientAPIImpl().consumerSendMessageBack(brokerAddr,
+                    msg,
+                    this.defaultMQPushConsumer.getConsumerGroup(),
+                    delayLevel,
+                    5000,
+                    getMaxReconsumeTimes());
         } catch (Exception e) {
             log.error("sendMessageBack Exception, " + this.defaultMQPushConsumer.getConsumerGroup(), e);
 

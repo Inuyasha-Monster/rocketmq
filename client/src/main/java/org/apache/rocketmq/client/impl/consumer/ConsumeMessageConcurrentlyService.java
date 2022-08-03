@@ -277,19 +277,21 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                 break;
             case CLUSTERING:
                 List<MessageExt> msgBackFailed = new ArrayList<MessageExt>(consumeRequest.getMsgs().size());
+                // 从 ackIndex 开始将消息加入消费失败的集合
                 for (int i = ackIndex + 1; i < consumeRequest.getMsgs().size(); i++) {
                     MessageExt msg = consumeRequest.getMsgs().get(i);
                     // 重新把消费失败的消息投递给broker
                     boolean result = this.sendMessageBack(msg, context);
                     if (!result) {
                         msg.setReconsumeTimes(msg.getReconsumeTimes() + 1);
+                        // 投递失败的消息存起来
                         msgBackFailed.add(msg);
                     }
                 }
 
                 if (!msgBackFailed.isEmpty()) {
                     consumeRequest.getMsgs().removeAll(msgBackFailed);
-
+                    // 把back投递失败的消息再次消费
                     this.submitConsumeRequestLater(msgBackFailed, consumeRequest.getProcessQueue(), consumeRequest.getMessageQueue());
                 }
                 break;
@@ -441,6 +443,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                         ConsumeMessageConcurrentlyService.this.consumerGroup,
                         msgs,
                         messageQueue);
+                // 业务返回null或者异常情况，设置为：延时再次消费
                 status = ConsumeConcurrentlyStatus.RECONSUME_LATER;
             }
 
