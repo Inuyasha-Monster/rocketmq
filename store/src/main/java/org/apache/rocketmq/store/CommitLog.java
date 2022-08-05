@@ -879,7 +879,9 @@ public class CommitLog {
             final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
             if (messageExt.isWaitStoreMsgOK()) {
                 GroupCommitRequest request = new GroupCommitRequest(result.getWroteOffset() + result.getWroteBytes(), this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
+                // 提交请求到watcher中检查是否提交超时
                 flushDiskWatcher.add(request);
+                // 并不是每次消息append之后都会真正的刷盘，因为这里是是组提交的方式
                 service.putRequest(request);
                 // 返回同步刷盘的future
                 return request.future();
