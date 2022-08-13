@@ -651,7 +651,7 @@ public class MQClientInstance {
                             }
                         }
                     } else {
-                        // rpc拉取路由信息
+                        // rpc从namesvr拉取路由信息
                         topicRouteData = this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(topic, clientConfig.getMqClientApiTimeout());
                     }
                     if (topicRouteData != null) {
@@ -674,8 +674,10 @@ public class MQClientInstance {
                             // Update Pub info
                             // 更新生产者主题发布信息
                             if (!producerTable.isEmpty()) {
+                                // 通过 topicRouteData 创建主题发布信息对象
                                 TopicPublishInfo publishInfo = topicRouteData2TopicPublishInfo(topic, topicRouteData);
                                 publishInfo.setHaveTopicRouterInfo(true);
+                                // 循环生产者将主题信息填充进去
                                 Iterator<Entry<String, MQProducerInner>> it = this.producerTable.entrySet().iterator();
                                 while (it.hasNext()) {
                                     Entry<String, MQProducerInner> entry = it.next();

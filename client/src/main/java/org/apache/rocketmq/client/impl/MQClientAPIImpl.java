@@ -1389,6 +1389,7 @@ public class MQClientAPIImpl {
         // 创建获取路由信息的指令
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, requestHeader);
 
+        // 发送rpc请求到namesvr获取路由信息
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {
@@ -1402,6 +1403,7 @@ public class MQClientAPIImpl {
             case ResponseCode.SUCCESS: {
                 byte[] body = response.getBody();
                 if (body != null) {
+                    // json反序列化
                     return TopicRouteData.decode(body, TopicRouteData.class);
                 }
             }

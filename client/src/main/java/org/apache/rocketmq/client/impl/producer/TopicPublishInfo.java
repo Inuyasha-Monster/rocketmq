@@ -68,6 +68,7 @@ public class TopicPublishInfo {
 
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
         if (lastBrokerName == null) {
+            // 如果是首次发送消息，则线性轮训当前主题的消息队列，选择一个
             return selectOneMessageQueue();
         } else {
             for (int i = 0; i < this.messageQueueList.size(); i++) {
@@ -76,6 +77,7 @@ public class TopicPublishInfo {
                 if (pos < 0)
                     pos = 0;
                 MessageQueue mq = this.messageQueueList.get(pos);
+                // 排除掉上次发送失败的brokerName
                 if (!mq.getBrokerName().equals(lastBrokerName)) {
                     return mq;
                 }
