@@ -178,7 +178,7 @@ public class AllocateMappedFileService extends ServiceThread {
                         mappedFile = ServiceLoader.load(MappedFile.class).iterator().next();
                         mappedFile.init(req.getFilePath(), req.getFileSize(), messageStore.getTransientStorePool());
                     } catch (RuntimeException e) {
-                        // 默认进行直接new创建
+                        // 默认进行直接new创建支持内存池的映射文件
                         log.warn("Use default implementation.");
                         // 构建一个携带瞬态内存池的mappedFile
                         mappedFile = new MappedFile(req.getFilePath(), req.getFileSize(), messageStore.getTransientStorePool());
