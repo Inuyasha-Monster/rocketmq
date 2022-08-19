@@ -128,9 +128,19 @@ public class ScheduleMessageService extends ConfigManager {
 
     public void start() {
         if (started.compareAndSet(false, true)) {
+
+            /* 延时消息偏移量
+             * {
+             *         "offsetTable":{1:2,2:3,3:1
+             *         }
+             * }
+             */
+
             // 加载配置和初始化延时table
             super.load();
+            // 默认 maxDelayLevel = 18
             this.deliverExecutorService = new ScheduledThreadPoolExecutor(this.maxDelayLevel, new ThreadFactoryImpl("ScheduleMessageTimerThread_"));
+            // 开启异步投递
             if (this.enableAsyncDeliver) {
                 this.handleExecutorService = new ScheduledThreadPoolExecutor(this.maxDelayLevel, new ThreadFactoryImpl("ScheduleMessageExecutorHandleThread_"));
             }
@@ -151,7 +161,7 @@ public class ScheduleMessageService extends ConfigManager {
                 }
             }
 
-            // 1s一次的将延时消息的offset进行本地持久化到文件存储
+            // 10s后将延时消息的offset进行本地持久化到文件存储，并且后续每10ms一次
             this.deliverExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
                 public void run() {
@@ -210,8 +220,11 @@ public class ScheduleMessageService extends ConfigManager {
 
     @Override
     public boolean load() {
+        // 加载配置文件的延时消费偏移量到 offsetTable
         boolean result = super.load();
+        // 从配置文件读取延时等级配置后初始化延时等级table
         result = result && this.parseDelayLevel();
+        // 尝试纠正偏移量
         result = result && this.correctDelayOffset();
         return result;
     }
@@ -219,9 +232,7 @@ public class ScheduleMessageService extends ConfigManager {
     public boolean correctDelayOffset() {
         try {
             for (int delayLevel : delayLevelTable.keySet()) {
-                ConsumeQueue cq =
-                        ScheduleMessageService.this.defaultMessageStore.findConsumeQueue(TopicValidator.RMQ_SYS_SCHEDULE_TOPIC,
-                                delayLevel2QueueId(delayLevel));
+                ConsumeQueue cq = ScheduleMessageService.this.defaultMessageStore.findConsumeQueue(TopicValidator.RMQ_SYS_SCHEDULE_TOPIC, delayLevel2QueueId(delayLevel));
                 Long currentDelayOffset = offsetTable.get(delayLevel);
                 if (currentDelayOffset == null || cq == null) {
                     continue;
@@ -288,6 +299,7 @@ public class ScheduleMessageService extends ConfigManager {
             String[] levelArray = levelString.split(" ");
             for (int i = 0; i < levelArray.length; i++) {
                 String value = levelArray[i];
+                // 30s 1m，取单位
                 String ch = value.substring(value.length() - 1);
                 Long tu = timeUnitTable.get(ch);
 
@@ -295,8 +307,11 @@ public class ScheduleMessageService extends ConfigManager {
                 if (level > this.maxDelayLevel) {
                     this.maxDelayLevel = level;
                 }
+                // 延时的数值
                 long num = Long.parseLong(value.substring(0, value.length() - 1));
+                // 计算当前level的延时毫秒数
                 long delayTimeMillis = tu * num;
+                // 添加到延时等级缓存中
                 this.delayLevelTable.put(level, delayTimeMillis);
                 if (this.enableAsyncDeliver) {
                     this.deliverPendingTable.put(level, new LinkedBlockingQueue<>());
