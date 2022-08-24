@@ -31,6 +31,13 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
         this.brokerController = brokerController;
     }
 
+    /**
+     * 连接通道关闭、消费者注册、消费者注销的时候，触发消费者事件处理逻辑
+     *
+     * @param event
+     * @param group
+     * @param args
+     */
     @Override
     public void handle(ConsumerGroupEvent event, String group, Object... args) {
         if (event == null) {
@@ -43,6 +50,7 @@ public class DefaultConsumerIdsChangeListener implements ConsumerIdsChangeListen
                 }
                 List<Channel> channels = (List<Channel>) args[0];
                 if (channels != null && brokerController.getBrokerConfig().isNotifyConsumerIdsChangedEnable()) {
+                    // 给当前consumer group所有consumer channel下发变更通知
                     for (Channel chl : channels) {
                         // oneway方式下发consumer发生变更事件
                         this.brokerController.getBroker2Client().notifyConsumerIdsChanged(chl, group);
