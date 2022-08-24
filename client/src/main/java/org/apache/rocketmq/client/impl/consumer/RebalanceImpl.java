@@ -419,7 +419,8 @@ public abstract class RebalanceImpl {
         List<PullRequest> pullRequestList = new ArrayList<PullRequest>();
         for (MessageQueue mq : mqSet) {
             if (!this.processQueueTable.containsKey(mq)) {
-                // 如果是顺序消费模式并且向broker远程锁定mq，如果锁定不成功则说明当前mq还处于被锁定状态，则当前mq分配给该消费者失败
+                // 如果是顺序消费模式并且向broker远程锁定mq ==>
+                // 如果锁定不成功则说明当前mq还处于被锁定状态，则当前mq分配给该消费者失败
                 if (isOrder && !this.lock(mq)) {
                     log.warn("doRebalance, {}, add a new mq failed, {}, because lock failed", consumerGroup, mq);
                     continue;
@@ -445,6 +446,7 @@ public abstract class RebalanceImpl {
                     if (pre != null) {
                         log.info("doRebalance, {}, mq already exists, {}", consumerGroup, mq);
                     } else {
+                        // 给新增加的mq设定从远程读取的偏移量（集群模式）
                         log.info("doRebalance, {}, add a new mq, {}", consumerGroup, mq);
                         PullRequest pullRequest = new PullRequest();
                         pullRequest.setConsumerGroup(consumerGroup);

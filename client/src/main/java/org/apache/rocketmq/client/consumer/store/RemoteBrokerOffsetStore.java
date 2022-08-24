@@ -207,10 +207,15 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
         }
 
         if (findBrokerResult != null) {
+            // 构造上报偏移量的请求
             UpdateConsumerOffsetRequestHeader requestHeader = new UpdateConsumerOffsetRequestHeader();
+            // 指定主题
             requestHeader.setTopic(mq.getTopic());
+            // 消费组
             requestHeader.setConsumerGroup(this.groupName);
+            // 主题的那个队列
             requestHeader.setQueueId(mq.getQueueId());
+            // 队列的消费偏移量
             requestHeader.setCommitOffset(offset);
 
             if (isOneway) {
