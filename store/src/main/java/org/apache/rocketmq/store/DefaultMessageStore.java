@@ -727,7 +727,6 @@ public class DefaultMessageStore implements MessageStore {
                         // 建议从「从机器」拉取消息进行消费
                         getResult.setSuggestPullingFromSlave(diff > memory);
                     } finally {
-
                         bufferConsumeQueue.release();
                     }
                 } else {
