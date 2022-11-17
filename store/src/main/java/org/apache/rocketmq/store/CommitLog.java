@@ -1106,6 +1106,7 @@ public class CommitLog {
     /**
      * 异步刷盘实现（非瞬时内存池）
      * 1、默认固定频率500ms一次刷盘，且需要看是否累计16kb或者距离上次刷盘累计超过10s
+     * 1.1、上述刷盘方式可以提高吞吐，因为fsync执行的频次降低了，且单次刷盘形成了批量刷盘的groupCommit的效果
      * 2、刷盘方式跟同步一致：mappedFileQueue.flush 具体通过 mappedByteBuffer.force 进行page cache刷盘到disk
      */
     class FlushRealTimeService extends FlushCommitLogService {
