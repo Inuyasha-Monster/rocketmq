@@ -1042,6 +1042,7 @@ public class CommitLog {
 
     /**
      * 基本流程跟异步FlushRealTimeService差不多
+     * 0、默认间隔200ms进行一次逻辑
      * 1、mappedFileQueue.commit 具体是通过 writerBuffer 写到 fileChannel 中后 fileChannel.force 进行刷盘
      */
     class CommitRealTimeService extends FlushCommitLogService {
