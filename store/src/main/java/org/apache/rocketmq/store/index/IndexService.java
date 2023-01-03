@@ -228,6 +228,7 @@ public class IndexService {
                 }
             }
 
+            // 针对用户指定的关键key构建索引
             if (keys != null && keys.length() > 0) {
                 // 可以是多个key
                 String[] keyset = keys.split(MessageConst.KEY_SEPARATOR);
