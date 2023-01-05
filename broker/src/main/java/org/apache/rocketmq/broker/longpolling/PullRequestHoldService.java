@@ -103,6 +103,7 @@ public class PullRequestHoldService extends ServiceThread {
             if (2 == kArray.length) {
                 String topic = kArray[0];
                 int queueId = Integer.parseInt(kArray[1]);
+                // 获取当前topic+queueId对应consumerQueue的最大偏移量，也就是持久化到什么位置了
                 final long offset = this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
                 try {
                     this.notifyMessageArriving(topic, queueId, offset);
@@ -117,15 +118,30 @@ public class PullRequestHoldService extends ServiceThread {
         notifyMessageArriving(topic, queueId, maxOffset, null, 0, null, null);
     }
 
-    public void notifyMessageArriving(final String topic, final int queueId, final long maxOffset, final Long tagsCode,
-                                      long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {
+    /**
+     * 提供给长轮训以及ReputMessageService服务调用
+     *
+     * @param topic
+     * @param queueId
+     * @param maxOffset
+     * @param tagsCode
+     * @param msgStoreTime
+     * @param filterBitMap
+     * @param properties
+     */
+    public void notifyMessageArriving(final String topic,
+                                      final int queueId,
+                                      final long maxOffset,
+                                      final Long tagsCode,
+                                      long msgStoreTime,
+                                      byte[] filterBitMap,
+                                      Map<String, String> properties) {
         String key = this.buildKey(topic, queueId);
         ManyPullRequest mpr = this.pullRequestTable.get(key);
         if (mpr != null) {
             List<PullRequest> requestList = mpr.cloneListAndClear();
             if (requestList != null) {
                 List<PullRequest> replayList = new ArrayList<PullRequest>();
-
                 for (PullRequest request : requestList) {
                     long newestOffset = maxOffset;
                     // 表明想要获取的偏移量大于目前最大值
@@ -138,7 +154,7 @@ public class PullRequestHoldService extends ServiceThread {
                     if (newestOffset > request.getPullFromThisOffset()) {
                         boolean match = request.getMessageFilter().isMatchedByConsumeQueue(tagsCode,
                                 new ConsumeQueueExt.CqExtUnit(tagsCode, msgStoreTime, filterBitMap));
-                        // match by bit map, need eval again when properties is not null.
+                        // match by bit map, need eval again when properties are not null.
                         if (match && properties != null) {
                             // 执行hash值比较进行消息过滤
                             match = request.getMessageFilter().isMatchedByCommitLog(null, properties);
@@ -156,7 +172,8 @@ public class PullRequestHoldService extends ServiceThread {
                     }
 
                     // 如果挂起超时时间到，也进行发送响应给client
-                    if (System.currentTimeMillis() >= (request.getSuspendTimestamp() + request.getTimeoutMillis())) {
+                    if (System.currentTimeMillis() >=
+                            (request.getSuspendTimestamp() + request.getTimeoutMillis())) {
                         try {
                             this.brokerController.getPullMessageProcessor().executeRequestWhenWakeup(request.getClientChannel(), request.getRequestCommand());
                         } catch (Throwable e) {

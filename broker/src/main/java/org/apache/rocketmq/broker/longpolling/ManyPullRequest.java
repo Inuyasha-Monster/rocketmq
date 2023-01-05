@@ -19,9 +19,17 @@ package org.apache.rocketmq.broker.longpolling;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * 暂存拉取请求模型
+ */
 public class ManyPullRequest {
     private final ArrayList<PullRequest> pullRequestList = new ArrayList<>();
 
+    /**
+     * 基于实例的jvm锁保证线程安全
+     *
+     * @param pullRequest
+     */
     public synchronized void addPullRequest(final PullRequest pullRequest) {
         this.pullRequestList.add(pullRequest);
     }
@@ -36,7 +44,6 @@ public class ManyPullRequest {
             this.pullRequestList.clear();
             return result;
         }
-
         return null;
     }
 
