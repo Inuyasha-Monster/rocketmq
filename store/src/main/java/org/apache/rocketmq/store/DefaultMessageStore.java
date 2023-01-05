@@ -2079,8 +2079,7 @@ public class DefaultMessageStore implements MessageStore {
                         this.reputFromOffset = result.getStartOffset();
 
                         for (int readSize = 0; readSize < result.getSize() && doNext; ) {
-                            DispatchRequest dispatchRequest =
-                                    DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
+                            DispatchRequest dispatchRequest = DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
                             int size = dispatchRequest.getBufferSize() == -1 ? dispatchRequest.getMsgSize() : dispatchRequest.getBufferSize();
 
                             if (dispatchRequest.isSuccess()) {
@@ -2100,6 +2099,7 @@ public class DefaultMessageStore implements MessageStore {
                                                 dispatchRequest.getStoreTimestamp(),
                                                 dispatchRequest.getBitMap(),
                                                 dispatchRequest.getPropertiesMap());
+                                        // 通知其他队列消费者消息触达
                                         notifyMessageArrive4MultiQueue(dispatchRequest);
                                     }
 
