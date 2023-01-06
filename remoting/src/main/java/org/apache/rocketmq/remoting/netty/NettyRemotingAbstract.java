@@ -294,6 +294,7 @@ public abstract class NettyRemotingAbstract {
             responseFuture.setResponseCommand(cmd);
             responseTable.remove(opaque);
             if (responseFuture.getInvokeCallback() != null) {
+                // 异步的情况会注册回调函数，例如：pull,queryMessage,sendAsync等操作需要注册回调函数
                 executeInvokeCallback(responseFuture);
             } else {
                 // 设置服务端的响应结果，并唤醒阻塞线程
