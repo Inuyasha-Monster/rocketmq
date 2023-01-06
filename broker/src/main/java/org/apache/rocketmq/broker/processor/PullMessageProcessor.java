@@ -99,6 +99,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
         final PullMessageRequestHeader requestHeader =
                 (PullMessageRequestHeader) request.decodeCommandCustomHeader(PullMessageRequestHeader.class);
 
+        // 需要传递请求id
         response.setOpaque(request.getOpaque());
 
         log.debug("receive PullMessage request command, {}", request);
@@ -576,10 +577,11 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             @Override
             public void run() {
                 try {
-                    // 这里的最后一个参数=false，表示不需要挂起请求了
+                    // 这里的最后一个参数=false，表示不需要挂起请求了，并且重复走的拉取消息的流程
                     final RemotingCommand response = PullMessageProcessor.this.processRequest(channel, request, false);
 
                     if (response != null) {
+                        // 设置响应体的唯一Id，方便client针对性处理
                         response.setOpaque(request.getOpaque());
                         response.markResponseType();
                         try {
