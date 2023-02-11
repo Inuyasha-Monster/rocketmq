@@ -30,9 +30,13 @@ import org.apache.rocketmq.store.MappedFile;
 
 public class IndexFile {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-    private static int hashSlotSize = 4;
-    private static int indexSize = 20;
-    private static int invalidIndex = 0;
+    private static final int hashSlotSize = 4;
+
+    /**
+     * 一个indexItem的大小为20个字节 = 4个字节key的hashcode + 8个字节的消息commitLog的物理偏移量 + 4个字节的timeDiff + 4个字节的槽位的值
+     */
+    private static final int indexSize = 20;
+    private static final int invalidIndex = 0;
     /**
      * 默认500w
      */
@@ -41,9 +45,18 @@ public class IndexFile {
      * 默认2000w
      */
     private final int indexNum;
+    /**
+     * 对应内存映射文件
+     */
     private final MappedFile mappedFile;
     private final FileChannel fileChannel;
+    /**
+     * 对应的读写映射缓冲区
+     */
     private final MappedByteBuffer mappedByteBuffer;
+    /**
+     * 索引文件头
+     */
     private final IndexHeader indexHeader;
 
     public IndexFile(final String fileName,
@@ -114,7 +127,7 @@ public class IndexFile {
             int keyHash = indexKeyHashMethod(key);
             // 得到槽位
             int slotPos = keyHash % this.hashSlotNum;
-            // 得到槽位的物理偏移量
+            // 得到槽位的物理偏移量，针对当前indexFile文件的当前key的槽的物理位置
             int absSlotPos = IndexHeader.INDEX_HEADER_SIZE + slotPos * hashSlotSize;
 
             FileLock fileLock = null;
@@ -124,8 +137,9 @@ public class IndexFile {
                 // fileLock = this.fileChannel.lock(absSlotPos, hashSlotSize,
                 // false);
 
-                // 得到当前槽位的值
+                // 得到当前槽位的值 = 当前槽位最新的indexItem的逻辑偏移量
                 int slotValue = this.mappedByteBuffer.getInt(absSlotPos);
+                // 检查槽是否被使用过
                 if (slotValue <= invalidIndex || slotValue > this.indexHeader.getIndexCount()) {
                     slotValue = invalidIndex;
                 }
@@ -144,16 +158,16 @@ public class IndexFile {
                     timeDiff = 0;
                 }
 
-                // 索引数据写入的位置:索引头+哈希槽+索引数*索引大小
+                // 索引数据写入的位置：索引头+哈希槽+索引数*索引大小
                 int absIndexPos =
                         IndexHeader.INDEX_HEADER_SIZE + this.hashSlotNum * hashSlotSize
                                 + this.indexHeader.getIndexCount() * indexSize;
 
                 /**
                  * 索引构成: indexItem 固定20个字节
-                 * 4字节 哈希值
+                 * 4字节 key的哈希值
                  * 8字节 CommitLog偏移量
-                 * 4字节 存盘时间与 时间差(秒)
+                 * 4字节 存盘时间与首次存盘的时间差(秒)
                  * 4个字节：链接下一个索引的指针
                  */
                 this.mappedByteBuffer.putInt(absIndexPos, keyHash);
@@ -163,9 +177,9 @@ public class IndexFile {
                 // 补充：如果是第一条消息则该值为0，表示没有next对应的索引条目
                 this.mappedByteBuffer.putInt(absIndexPos + 4 + 8 + 4, slotValue);
 
-                // 更新槽位的值，槽位存储的总是最新的索引，对于MQ来说，总是关心最新的数据
+                // 更新槽位的值，[槽位存储的总是最新的索引]，对于MQ来说，总是关心最新的数据
                 // 补充：也就是说出现hash冲突的时候，槽位数据存储最新的索引条目的逻辑位置
-                // 到时候查询的时候，也是时间从前往后去找
+                // 到时候查询的时候，也是时间从新往旧去找
                 this.mappedByteBuffer.putInt(absSlotPos, this.indexHeader.getIndexCount());
 
                 // 记录开始数据

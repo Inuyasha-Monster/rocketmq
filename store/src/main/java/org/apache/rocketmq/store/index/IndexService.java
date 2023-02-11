@@ -95,6 +95,7 @@ public class IndexService {
                 return;
             }
 
+            // 找出最旧的indexFile的最大偏移量
             long endPhyOffset = this.indexFileList.get(0).getEndPhyOffset();
             if (endPhyOffset < offset) {
                 files = this.indexFileList.toArray();
@@ -106,12 +107,15 @@ public class IndexService {
         }
 
         if (files != null) {
-            List<IndexFile> fileList = new ArrayList<IndexFile>();
+            List<IndexFile> fileList = new ArrayList<>();
+            // 排除最新的indexFile文件
             for (int i = 0; i < (files.length - 1); i++) {
                 IndexFile f = (IndexFile) files[i];
+                // 再次检查一下
                 if (f.getEndPhyOffset() < offset) {
                     fileList.add(f);
                 } else {
+                    // 一旦发现比当前偏移量新的文件则退出循环
                     break;
                 }
             }
@@ -205,6 +209,7 @@ public class IndexService {
             DispatchRequest msg = req;
             String topic = msg.getTopic();
             String keys = msg.getKeys();
+            // 表示消息已经写入过indexFile了
             if (msg.getCommitLogOffset() < endPhyOffset) {
                 return;
             }
@@ -310,6 +315,7 @@ public class IndexService {
         {
             this.readWriteLock.readLock().lock();
             if (!this.indexFileList.isEmpty()) {
+                // 先看最新的文件是否写满
                 IndexFile tmp = this.indexFileList.get(this.indexFileList.size() - 1);
                 if (!tmp.isWriteFull()) {
                     indexFile = tmp;
