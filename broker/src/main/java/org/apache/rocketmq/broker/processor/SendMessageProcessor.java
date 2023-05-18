@@ -564,6 +564,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             responseHeader.setQueueId(queueIdInt);
             responseHeader.setQueueOffset(putMessageResult.getAppendMessageResult().getLogicsOffset());
 
+            log.debug("发送成功直接回包,cur_thread_name:{}", Thread.currentThread().getName());
             // 发送成功直接回包
             doResponse(ctx, request, response);
 

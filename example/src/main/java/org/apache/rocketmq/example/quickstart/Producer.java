@@ -45,7 +45,7 @@ public class Producer {
          * </pre>
          */
 
-        producer.setNamesrvAddr("localhost:9876");
+        producer.setNamesrvAddr("127.0.0.1:9876");
         producer.setRetryTimesWhenSendFailed(0);
         /*
          * Launch the instance.
