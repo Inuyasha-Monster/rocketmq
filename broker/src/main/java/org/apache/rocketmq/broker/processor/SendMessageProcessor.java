@@ -338,7 +338,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
             // 处理其他消息存储，例如普通消息、延时消息等
             putMessageResult = this.brokerController.getMessageStore().asyncPutMessage(msgInner);
         }
-        // 具体处理消息存储逻辑
+        // 具体处理消息回调逻辑，例如回包处理结果给client
         return handlePutMessageResultFuture(putMessageResult, response, request, msgInner, responseHeader, mqtraceContext, ctx, queueIdInt);
     }
 
@@ -581,6 +581,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor implement
                 sendMessageContext.setCommercialSendSize(wroteSize);
                 sendMessageContext.setCommercialOwner(owner);
             }
+
+            // TODO: 2023/5/18 这里如果是sendOk的情况就直接返回null，因为前面的逻辑已经返回响应给client了
             return null;
         } else {
             if (hasSendMessageHook()) {

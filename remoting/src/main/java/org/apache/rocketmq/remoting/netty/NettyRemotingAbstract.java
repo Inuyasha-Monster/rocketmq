@@ -205,6 +205,7 @@ public abstract class NettyRemotingAbstract {
                     final RemotingResponseCallback callback = response -> {
                         doAfterRpcHooks(remoteAddr, cmd, response);
                         if (!cmd.isOnewayRPC()) {
+                            // 这里判断是否为null，是因为例如SendMessageProcessor内部处理成功之后就直接发送结果给client了，除非出现错误的时候
                             if (response != null) {
                                 response.setOpaque(opaque);
                                 response.markResponseType();
